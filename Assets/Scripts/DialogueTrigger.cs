@@ -5,16 +5,16 @@ using TMPro;
 
 public class DialogueTrigger : MonoBehaviour
 {
-    public string nodeName = "LeifIntro";
-    public float interactRange = 5f;
-    public Transform player;
+    [Header("Dialogue")]
+    public string nodeName;
+
+    [Header("References")]
     public DialogueRunner dialogueRunner;
     public TMP_Text speakerNameText;
-    public GameObject interactionPrompt;
 
-    private bool hasTriggered = false;
+    private bool hasTriggered;
 
-    void OnEnable()
+    private void OnEnable()
     {
         if (speakerNameText != null)
             speakerNameText.color = new Color(1f, 0.78f, 0.39f, 1f);
@@ -23,44 +23,32 @@ public class DialogueTrigger : MonoBehaviour
             dialogueRunner.onDialogueComplete.AddListener(OnDialogueEnded);
     }
 
-    void OnDisable()
+    private void OnDisable()
     {
         if (dialogueRunner != null)
             dialogueRunner.onDialogueComplete.RemoveListener(OnDialogueEnded);
     }
 
-    void Update()
-    {
-        if (hasTriggered) return;
-
-        float distance = Vector2.Distance(
-            transform.position,
-            player.position
-        );
-
-        if (interactionPrompt != null)
-            interactionPrompt.SetActive(distance < interactRange);
-
-        if (distance < interactRange)
-        {
-            if (Keyboard.current.eKey.wasPressedThisFrame)
-            {
-                hasTriggered = true;
-                if (interactionPrompt != null)
-                    interactionPrompt.SetActive(false);
-                dialogueRunner.StartDialogue(nodeName);
-            }
-        }
-    }
-
-    void OnDrawGizmosSelected()
+    private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, interactRange);
+        Gizmos.DrawWireSphere(transform.position, 3f);
     }
 
-    void OnDialogueEnded()
+    private void OnDialogueEnded()
     {
         hasTriggered = false;
+    }
+
+    public void TriggerDialogue()
+    {
+        if (hasTriggered || dialogueRunner.IsDialogueRunning) return;
+        hasTriggered = true;
+
+        DialogueAdvancer advancer = FindAnyObjectByType<DialogueAdvancer>();
+        if (advancer != null)
+            advancer.OnDialogueStarted();
+
+        dialogueRunner.StartDialogue(nodeName);
     }
 }

@@ -6,9 +6,17 @@ public class DialogueAdvancer : MonoBehaviour
 {
     public DialogueRunner dialogueRunner;
 
+    private bool dialogueJustStarted = false;
+
     void Update()
     {
         if (!dialogueRunner.IsDialogueRunning) return;
+
+        if (dialogueJustStarted)
+        {
+            dialogueJustStarted = false;
+            return;
+        }
 
         var keyboard = Keyboard.current;
         if (keyboard == null) return;
@@ -18,5 +26,10 @@ public class DialogueAdvancer : MonoBehaviour
         {
             dialogueRunner.RequestNextLine();
         }
+    }
+
+    public void OnDialogueStarted()
+    {
+        dialogueJustStarted = true;
     }
 }

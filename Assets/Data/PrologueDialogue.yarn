@@ -1,11 +1,56 @@
 ﻿title: LeifIntro
 tags:
 ---
+
 Leif: "Maria. You're up early."
 Dr. Maria: "Couldn't sleep. The temperature readings are off again."
 Leif: "They're always off. That's why we're out here."
 Dr. Maria: "This is different, Leif. Something's wrong with the current patterns."
 Leif: "..."
 Leif: "Want some coffee first?"
-Dr. Maria: "Thanks Leif."
+Dr. Maria: "Always."
+===
+
+title: YukiIntro
+tags:
+---
+
+Yuki: "Dr. Maria! I've been running the numbers on last night's data."
+Dr. Maria: "And?"
+Yuki: "The acidification levels near the drilling platform are three times the baseline."
+Dr. Maria: "Three times. Are you sure?"
+Yuki: "I've checked it four times. Something is very wrong out there."
+===
+
+title: CallumIntro
+tags:
+---
+
+Callum: "Morning. Engine's running a bit rough but she'll hold."
+Dr. Maria: "How rough?"
+Callum: "Rough enough that I'd rather not sail into a storm today."
+Dr. Maria: "Let's hope the weather agrees with you."
+Callum: "It never does."
+===
+
+title: AmaraIntro
+tags:
+---
+
+Amara: "You feel it too, don't you?"
+Dr. Maria: "Feel what?"
+Amara: "The ocean. It's restless today. Like it's trying to tell us something."
+Dr. Maria: "I prefer data to feelings, Amara."
+Amara: "And yet here you are, up before sunrise, staring at the water."
+===
+
+title: ShoreshIntro
+tags:
+---
+
+Shoresh: "Breakfast is ready. Eggs and coffee."
+Dr. Maria: "Thanks Shoresh. How are you doing?"
+Shoresh: "I've been on rougher seas. This one feels different though."
+Dr. Maria: "Different how?"
+Shoresh: "Quiet. Too quiet for open ocean."
 ===
