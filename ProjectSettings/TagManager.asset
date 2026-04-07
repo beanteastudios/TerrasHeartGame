@@ -47,6 +47,30 @@ TagManager:
   - name: Default
     uniqueID: 0
     locked: 0
+  - name: Background
+    uniqueID: 2760709039
+    locked: 0
+  - name: WavesFar
+    uniqueID: 2461051969
+    locked: 0
+  - name: WavesMid
+    uniqueID: 809836047
+    locked: 0
+  - name: WavesNear
+    uniqueID: 380801589
+    locked: 0
+  - name: Ship
+    uniqueID: 1305810161
+    locked: 0
+  - name: Player
+    uniqueID: 2971212027
+    locked: 0
+  - name: Foreground
+    uniqueID: 4067557799
+    locked: 0
+  - name: UI
+    uniqueID: 1639769347
+    locked: 0
   m_RenderingLayers:
   - Default
   - Light Layer 1
@@ -56,3 +80,4 @@ TagManager:
   - Light Layer 5
   - Light Layer 6
   - Light Layer 7
+  m_MigratedRenderPipelines: []
