@@ -10,11 +10,12 @@ TagManager:
   - Hidden_Area_3
   - Cube_Spawn_Point_1
   - Cube_Spawn_Point_2
+  - Ground
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  - Ground
   - Water
   - UI
   - 
@@ -56,11 +57,14 @@ TagManager:
   - name: WavesMid
     uniqueID: 809836047
     locked: 0
+  - name: ShipHull
+    uniqueID: 1305810161
+    locked: 0
   - name: WavesNear
     uniqueID: 380801589
     locked: 0
-  - name: Ship
-    uniqueID: 1305810161
+  - name: ShipDeck
+    uniqueID: 4077547223
     locked: 0
   - name: Player
     uniqueID: 2971212027
