@@ -285,6 +285,13 @@
         "com.unity.render-pipelines.core": "17.4.0"
       }
     },
+    "dev.yarnspinner.unity": {
+      "version": "https://github.com/YarnSpinnerTool/YarnSpinner-Unity.git#current",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "0bd966b8f0ebe6600fc554cdb854a8b33cc3d54d"
+    },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",
       "depth": 0,
