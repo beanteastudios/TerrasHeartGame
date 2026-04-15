@@ -344,6 +344,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Scanner.ScannerController
   _config: {fileID: 11400000, guid: e4eafe79848202c4a99d981a5060b0d0, type: 2}
   _scanOrigin: {fileID: 1677834685}
+  _crewManager: {fileID: 1880077955}
 --- !u!114 &7834656
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -536,7 +537,7 @@ Transform:
   m_GameObject: {fileID: 74371411}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.27, y: 0.05, z: 0}
+  m_LocalPosition: {x: 0.51, y: 0.05, z: 0}
   m_LocalScale: {x: 0.02, y: 0.08, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4174,7 +4175,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Scanner.TestScanTarget
   _data: {fileID: 11400000, guid: f0c95f9101164bd42b916fd92d2934e9, type: 2}
-  _isAlive: 0
+  _isAlive: 1
 --- !u!61 &1824007115
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -4402,6 +4403,7 @@ GameObject:
   - component: {fileID: 1880077953}
   - component: {fileID: 1880077952}
   - component: {fileID: 1880077954}
+  - component: {fileID: 1880077955}
   m_Layer: 0
   m_Name: GameManagers
   m_TagString: Untagged
@@ -4449,6 +4451,27 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.WorldState.BiomeHealthManager
   _config: {fileID: 11400000, guid: 636b50bbef716324c821ffaad8ce4631, type: 2}
+--- !u!114 &1880077955
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1880077951}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ba922a5032cdc14d87ad6758e0d7e20, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Crew.CrewManager
+  _crewData:
+  - {fileID: 11400000, guid: a96022d994b7e8141833de04c175f836, type: 2}
+  - {fileID: 11400000, guid: 2ff277d49aa292a439cff4455fa4732a, type: 2}
+  - {fileID: 11400000, guid: af8e5d55594ac1b49ae2f162d7f26f4e, type: 2}
+  - {fileID: 11400000, guid: c431a8ac0558bcb44a8fbb1042f1c76f, type: 2}
+  - {fileID: 11400000, guid: 07e5ee987ef994c4d9c13fc40de97330, type: 2}
+  _startingAssignments:
+  - Member: 1
+    Task: 1
 --- !u!1 &1918582599
 GameObject:
   m_ObjectHideFlags: 0

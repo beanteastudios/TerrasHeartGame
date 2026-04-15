@@ -3,33 +3,19 @@
 // Path: Assets/Scripts/Scanner/ScannerController.cs
 // Terra's Heart — Dr. Maria's scanner. The primary verb of the entire game.
 //
-// Attach to: DrMaria (same GameObject as PlayerController)
-// Requires:  Rigidbody2D (already present on DrMaria)
+// Updated for Step 4: reads scan duration multiplier from CrewManager.
+// If CrewManager is null or unassigned, base duration applies — no regression.
 //
-// Input style: Keyboard.current polling — matches existing PlayerController.cs.
-// Scan key: F
-// Facing direction: tracked from A/D key state, same as PlayerController logic.
+// Effective scan duration = base × creature multiplier × crew multiplier
+// Example: 1.5s × 1.0 (creature) × 0.6 (Yuki on Research) = 0.9s
 //
-// Option B note: When the .inputactions asset is created (dedicated session),
-// replace Keyboard.current references with InputActionReference fields.
-// The scan logic (DetectTarget, CompleteScan, ResetScanState) is unchanged.
-//
-// Flow:
-//   F wasPressedThisFrame → lock onto target, begin hold timer
-//   F isPressed + timer   → tick progress; complete scan at threshold
-//   F released early      → interrupt
-//
-// VFX layer: NOT YET IMPLEMENTED. Console logs prove the loop for MVP.
-//
-// API confirmed against Unity 6000.4 + Input System 1.x:
-//   Keyboard.current — valid when New Input System is active          ✓
-//   .wasPressedThisFrame / .isPressed on KeyControl                   ✓
-//   Physics2D.Raycast(Vector2, Vector2, float, int) → RaycastHit2D    ✓
+// Input: Keyboard.current polling — Scan key: F
 // ─────────────────────────────────────────────────────────────────────────────
 
 using UnityEngine;
 using UnityEngine.InputSystem;
 using TerrasHeart.Events;
+using TerrasHeart.Crew;
 
 namespace TerrasHeart.Scanner
 {
@@ -40,10 +26,14 @@ namespace TerrasHeart.Scanner
         [Tooltip("Assign ScannerConfig.asset from Assets/Data/ScriptableObjects/Scanner/")]
         [SerializeField] private ScannerConfigSO _config;
 
-        [Header("Scan Origin")]
-        [Tooltip("Optional: create an empty child Transform on DrMaria at roughly hand height " +
-                 "and assign it here. If left null, the scanner fires from DrMaria's pivot.")]
+        [Header("References")]
+        [Tooltip("Optional scan origin transform at chest height on DrMaria. " +
+                 "Falls back to DrMaria pivot if left empty.")]
         [SerializeField] private Transform _scanOrigin;
+
+        [Tooltip("Optional. If assigned, scan hold duration is modified by crew assignment bonuses. " +
+                 "Assign the CrewManager component from GameManagers.")]
+        [SerializeField] private CrewManager _crewManager;
 
         // ─── Runtime State ────────────────────────────────────────────────────
 
@@ -75,12 +65,6 @@ namespace TerrasHeart.Scanner
         // Input Handling
         // ─────────────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Tracks which direction Dr. Maria is facing based on A/D input.
-        /// Mirrors the same logic in PlayerController so facing is always consistent.
-        /// Only updates when a horizontal key is actively pressed — retains last
-        /// known direction when no input is held (Maria faces the last way she moved).
-        /// </summary>
         private void TrackFacingDirection(Keyboard kb)
         {
             if (kb.dKey.isPressed || kb.rightArrowKey.isPressed)
@@ -89,15 +73,8 @@ namespace TerrasHeart.Scanner
                 _facingRight = false;
         }
 
-        /// <summary>
-        /// Handles the full scan input state machine each frame:
-        ///   - F just pressed  → attempt target lock, start timer
-        ///   - F held          → tick timer, complete on threshold
-        ///   - F released      → interrupt if scan was in progress
-        /// </summary>
         private void HandleScanInput(Keyboard kb)
         {
-            // ── Scan started this frame ───────────────────────────────────────
             if (kb.fKey.wasPressedThisFrame)
             {
                 _isScanHeld    = true;
@@ -121,13 +98,9 @@ namespace TerrasHeart.Scanner
                 }
             }
 
-            // ── Scan held — tick timer ────────────────────────────────────────
             if (_isScanHeld && kb.fKey.isPressed)
-            {
                 UpdateScanProgress();
-            }
 
-            // ── Scan released before completion ──────────────────────────────
             if (_isScanHeld && kb.fKey.wasReleasedThisFrame)
             {
                 if (_currentTarget != null)
@@ -145,10 +118,6 @@ namespace TerrasHeart.Scanner
         // Scan Logic
         // ─────────────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Ticks the scan progress timer. Calls CompleteScan() when the threshold
-        /// is reached. Resets cleanly if the target disappears mid-scan.
-        /// </summary>
         private void UpdateScanProgress()
         {
             if (_currentTarget == null)
@@ -159,27 +128,30 @@ namespace TerrasHeart.Scanner
             }
 
             float baseDuration = _config != null ? _config.ScanHoldDuration : 1.5f;
+
             CreatureDataSO data = _currentTarget.GetData();
-            float duration = baseDuration * (data != null ? data.ScanDurationMultiplier : 1f);
+            float creatureMultiplier = data != null ? data.ScanDurationMultiplier : 1f;
+
+            // Crew multiplier — 1.0 if CrewManager not assigned (no regression)
+            float crewMultiplier = _crewManager != null
+                ? _crewManager.GetScanDurationMultiplier()
+                : 1f;
+
+            float effectiveDuration = baseDuration * creatureMultiplier * crewMultiplier;
 
             _scanProgress += Time.deltaTime;
 
-            if (_scanProgress >= duration)
+            if (_scanProgress >= effectiveDuration)
                 CompleteScan();
         }
 
-        /// <summary>
-        /// Called when the hold timer threshold is met.
-        /// Builds the ScanResult, notifies the target, and fires the GameEvent.
-        /// </summary>
         private void CompleteScan()
         {
             CreatureDataSO data = _currentTarget.GetData();
 
             if (data == null)
             {
-                Debug.LogWarning("[ScannerController] IScannable.GetData() returned null. " +
-                                 "Assign a CreatureDataSO to the TestScanTarget component. Scan aborted.");
+                Debug.LogWarning("[ScannerController] IScannable.GetData() returned null. Scan aborted.");
                 ResetScanState();
                 return;
             }
@@ -190,22 +162,23 @@ namespace TerrasHeart.Scanner
             _currentTarget.OnScanComplete();
             GameEvents.RaiseScanComplete(result);
 
+            // Log effective duration for crew bonus verification
+            float baseDuration       = _config != null ? _config.ScanHoldDuration : 1.5f;
+            float crewMultiplier     = _crewManager != null ? _crewManager.GetScanDurationMultiplier() : 1f;
+            float effectiveDuration  = baseDuration * data.ScanDurationMultiplier * crewMultiplier;
+
             Debug.Log($"[Scanner] ✓ SCAN COMPLETE ─ {data.SpeciesName} | " +
-                      $"Tier: {tier} | Alive: {result.WasAlive} | Biome: {data.BiomeID}");
+                      $"Tier: {tier} | Alive: {result.WasAlive} | " +
+                      $"Duration: {effectiveDuration:F2}s (crew ×{crewMultiplier:F2})");
 
             ResetScanState();
         }
 
-        /// <summary>
-        /// Fires a Physics2D raycast in the direction Dr. Maria is facing.
-        /// Returns the first IScannable hit within range, or null.
-        /// A debug ray is drawn in the Scene view for testing.
-        /// </summary>
         private IScannable DetectTarget()
         {
             if (_config == null)
             {
-                Debug.LogWarning("[ScannerController] ScannerConfigSO is not assigned. Cannot scan.");
+                Debug.LogWarning("[ScannerController] ScannerConfigSO not assigned.");
                 return null;
             }
 
@@ -213,19 +186,10 @@ namespace TerrasHeart.Scanner
             Vector2 direction = _facingRight ? Vector2.right : Vector2.left;
 
             RaycastHit2D hit = Physics2D.Raycast(
-                origin,
-                direction,
-                _config.ScanRange,
-                _config.ScannableLayer
-            );
+                origin, direction, _config.ScanRange, _config.ScannableLayer);
 
-            // Visible in Scene view — cyan on hit, grey on miss, 0.5s duration
-            Debug.DrawRay(
-                origin,
-                direction * _config.ScanRange,
-                hit.collider != null ? Color.cyan : Color.gray,
-                0.5f
-            );
+            Debug.DrawRay(origin, direction * _config.ScanRange,
+                hit.collider != null ? Color.cyan : Color.gray, 0.5f);
 
             if (hit.collider != null)
             {
@@ -233,8 +197,7 @@ namespace TerrasHeart.Scanner
                                     ?? hit.collider.GetComponentInParent<IScannable>();
 
                 if (scannable == null)
-                    Debug.Log($"[Scanner] Hit '{hit.collider.name}' but no IScannable found. " +
-                               "Check: does the object have TestScanTarget? Is it on the Scannable layer?");
+                    Debug.Log($"[Scanner] Hit '{hit.collider.name}' but no IScannable found.");
 
                 return scannable;
             }
@@ -253,16 +216,9 @@ namespace TerrasHeart.Scanner
         private void OnDrawGizmosSelected()
         {
             if (_config == null || _scanOrigin == null) return;
-
             UnityEditor.Handles.color = new Color(0f, 1f, 0.83f, 0.35f);
             Vector3 dir = _facingRight ? Vector3.right : Vector3.left;
-            UnityEditor.Handles.DrawWireArc(
-                _scanOrigin.position,
-                Vector3.forward,
-                dir,
-                30f,
-                _config.ScanRange
-            );
+            UnityEditor.Handles.DrawWireArc(_scanOrigin.position, Vector3.forward, dir, 30f, _config.ScanRange);
         }
 #endif
     }
