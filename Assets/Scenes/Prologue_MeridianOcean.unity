@@ -135,11 +135,14 @@ GameObject:
   - component: {fileID: 7834654}
   - component: {fileID: 7834655}
   - component: {fileID: 7834658}
+  - component: {fileID: 7834661}
   - component: {fileID: 7834657}
   - component: {fileID: 7834656}
+  - component: {fileID: 7834659}
+  - component: {fileID: 7834660}
   m_Layer: 7
   m_Name: DrMaria
-  m_TagString: Untagged
+  m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -385,6 +388,49 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: df679d6b9d6a0ca488e3914b0d529e81, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Adaptations.SpecimenInventory
+--- !u!114 &7834659
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7834648}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 759c2db5547da6b4885dd57f0ff7b845, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Systems.PersistentEntity
+--- !u!114 &7834660
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7834648}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 841697befbc16a64f99b579c2336e60a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Combat.PulseLanceController
+  _range: 8
+  _subduePerHit: 10
+  _fireCooldown: 0.4
+  _hitLayerMask:
+    serializedVersion: 2
+    m_Bits: 256
+  _fireOrigin: {fileID: 0}
+--- !u!114 &7834661
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7834648}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a0ef61328e5f23b41be9db2bfa766c43, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Environment.CraftingMaterialInventory
 --- !u!1 &11509934
 GameObject:
   m_ObjectHideFlags: 0
@@ -4404,6 +4450,7 @@ GameObject:
   - component: {fileID: 1880077952}
   - component: {fileID: 1880077954}
   - component: {fileID: 1880077955}
+  - component: {fileID: 1880077956}
   m_Layer: 0
   m_Name: GameManagers
   m_TagString: Untagged
@@ -4472,6 +4519,18 @@ MonoBehaviour:
   _startingAssignments:
   - Member: 1
     Task: 1
+--- !u!114 &1880077956
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1880077951}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 759c2db5547da6b4885dd57f0ff7b845, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Systems.PersistentEntity
 --- !u!1 &1918582599
 GameObject:
   m_ObjectHideFlags: 0

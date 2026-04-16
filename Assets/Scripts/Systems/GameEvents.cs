@@ -2,12 +2,15 @@
 // GameEvents.cs
 // Path: Assets/Scripts/Systems/GameEvents.cs
 // Terra's Heart — Central static event bus.
-// Updated: OnAdaptationUnlocked now passes AdaptationSO directly (not string).
+//
+// Step 5 addition: OnResourceCollected — fired by ResourceNode on E-key pickup.
+// Consumed by CraftingMaterialInventory on DrMaria.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using System;
 using TerrasHeart.Scanner;
 using TerrasHeart.Adaptations;
+using TerrasHeart.Environment;
 
 namespace TerrasHeart.Events
 {
@@ -17,7 +20,7 @@ namespace TerrasHeart.Events
 
         /// <summary>
         /// Raised when Dr. Maria successfully completes a full scan.
-        /// Consumed by: ResearchJournalManager, SpecimenInventory, WorldStateManager (future).
+        /// Consumed by: ResearchJournalManager, SpecimenInventory, BiomeHealthManager.
         /// </summary>
         public static event Action<ScanResult> OnScanComplete;
 
@@ -33,15 +36,15 @@ namespace TerrasHeart.Events
         /// </summary>
         public static event Action OnScanInterrupted;
 
-        public static void RaiseScanComplete(ScanResult result)   => OnScanComplete?.Invoke(result);
-        public static void RaiseScanBegin(IScannable target)      => OnScanBegin?.Invoke(target);
-        public static void RaiseScanInterrupted()                  => OnScanInterrupted?.Invoke();
+        public static void RaiseScanComplete(ScanResult result)  => OnScanComplete?.Invoke(result);
+        public static void RaiseScanBegin(IScannable target)     => OnScanBegin?.Invoke(target);
+        public static void RaiseScanInterrupted()                => OnScanInterrupted?.Invoke();
 
         // ─── Adaptations ──────────────────────────────────────────────────────
 
         /// <summary>
         /// Raised when Dr. Maria crafts and unlocks a new adaptation.
-        /// Consumed by: AdaptationUI (future), MetroidvaniaGateController (future).
+        /// Consumed by: AdaptationUI (future), gate controllers.
         /// </summary>
         public static event Action<AdaptationSO> OnAdaptationUnlocked;
 
@@ -53,11 +56,25 @@ namespace TerrasHeart.Events
         /// <summary>
         /// Raised when a biome's ecological health score changes.
         /// Args: biomeID (string), newHealthValue (float 0–100).
+        /// Consumed by: EcologicalHealthVolume, BiologicalResourceNode depletion,
+        ///              MusicLayerManager (future).
         /// </summary>
         public static event Action<string, float> OnBiomeHealthChanged;
 
         public static void RaiseBiomeHealthChanged(string biomeID, float newHealth) =>
             OnBiomeHealthChanged?.Invoke(biomeID, newHealth);
+
+        // ─── Resources — Step 5 addition ─────────────────────────────────────
+
+        /// <summary>
+        /// Raised when Dr. Maria picks up a resource node (E key).
+        /// Args: nodeType (ResourceNodeType), amount (int — always 1 per pickup in Step 5).
+        /// Consumed by: CraftingMaterialInventory on DrMaria.
+        /// </summary>
+        public static event Action<ResourceNodeType, int> OnResourceCollected;
+
+        public static void RaiseResourceCollected(ResourceNodeType nodeType, int amount) =>
+            OnResourceCollected?.Invoke(nodeType, amount);
 
         // ─── Crew (reserved) ─────────────────────────────────────────────────
 

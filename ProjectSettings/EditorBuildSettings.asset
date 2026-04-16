@@ -8,5 +8,14 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/GetStarted_Scene.unity
     guid: 6888813f2bd9e4521b9b1343abf0c60f
+  - enabled: 1
+    path: Assets/Scenes/MeridianBase.unity
+    guid: 6a099e64a6e3d6f4fb52d232377f2957
+  - enabled: 1
+    path: Assets/Scenes/BrineglowDescent.unity
+    guid: 801f1f94ca4a5cd44a82f8fae7fd3e66
+  - enabled: 1
+    path: Assets/Scenes/Prologue_MeridianOcean.unity
+    guid: 950eddeef270bba4ca9ecba7a7c0b9a1
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

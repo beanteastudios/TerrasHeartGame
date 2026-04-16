@@ -10,9 +10,11 @@
 //   - Checks SpecimenInventory for blueprint requirements
 //   - Consumes specimens and adds the adaptation to the unlocked list
 //   - Exposes GetJumpBonus() / GetMoveSpeedBonus() for PlayerController to read
+//   - Exposes HasEffect() for bool-type adaptations (e.g. BioluminescentCamo)
 //   - Fires GameEvents.OnAdaptationUnlocked
 //
-// PlayerController reads GetJumpBonus() each jump — no coupling beyond that call.
+// Step 5 addition: HasEffect(AdaptationEffectType) — used by GlowMantleAI
+// to check whether Skin / BioluminescentCamo is active before entering aggro.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using System.Collections.Generic;
@@ -54,7 +56,6 @@ namespace TerrasHeart.Adaptations
                 return false;
             }
 
-            // Already unlocked — don't craft again
             if (IsUnlocked(blueprint.YieldsAdaptation))
             {
                 Debug.Log($"[AdaptationManager] '{blueprint.YieldsAdaptation.DisplayName}' " +
@@ -62,7 +63,6 @@ namespace TerrasHeart.Adaptations
                 return false;
             }
 
-            // Check inventory
             if (!_inventory.HasSpecimens(
                     blueprint.RequiredCreature,
                     blueprint.MinimumTier,
@@ -70,21 +70,19 @@ namespace TerrasHeart.Adaptations
             {
                 Debug.Log($"[AdaptationManager] Cannot craft '{blueprint.YieldsAdaptation.DisplayName}'. " +
                           $"Need {blueprint.RequiredCount}x {blueprint.RequiredCreature.SpeciesName} " +
-                          $"(tier ≥ {blueprint.MinimumTier}).");
+                          $"(tier >= {blueprint.MinimumTier}).");
                 return false;
             }
 
-            // Consume specimens
             _inventory.ConsumeSpecimens(
                 blueprint.RequiredCreature,
                 blueprint.MinimumTier,
                 blueprint.RequiredCount);
 
-            // Unlock adaptation
             _unlocked.Add(blueprint.YieldsAdaptation);
             GameEvents.RaiseAdaptationUnlocked(blueprint.YieldsAdaptation);
 
-            Debug.Log($"[AdaptationManager] ✓ ADAPTATION UNLOCKED — " +
+            Debug.Log($"[AdaptationManager] ADAPTATION UNLOCKED - " +
                       $"{blueprint.YieldsAdaptation.DisplayName} " +
                       $"[{blueprint.YieldsAdaptation.Slot}]");
 
@@ -111,6 +109,26 @@ namespace TerrasHeart.Adaptations
         public float GetMoveSpeedBonus()
         {
             return SumEffect(AdaptationEffectType.MoveSpeedBonus);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Bool Effect Query — Step 5 addition
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Returns true if Dr. Maria has any unlocked adaptation with the given effect type.
+        /// Used for boolean adaptations such as BioluminescentCamo, ToxicGasImmunity, DarkVision.
+        /// GlowMantleAI calls this before entering aggro state:
+        ///   if (HasEffect(AdaptationEffectType.BioluminescentCamo)) skip aggro;
+        /// </summary>
+        public bool HasEffect(AdaptationEffectType effectType)
+        {
+            foreach (AdaptationSO adaptation in _unlocked)
+            {
+                if (adaptation.EffectType == effectType)
+                    return true;
+            }
+            return false;
         }
 
         /// <summary>Returns true if the given adaptation is already unlocked.</summary>
