@@ -20,18 +20,16 @@ namespace TerrasHeart.Systems
                 return;
             }
 
-            CinemachineVirtualCamera vcam =
-                GetComponent<CinemachineVirtualCamera>();
-
+            CinemachineCamera vcam = GetComponent<CinemachineCamera>();
             if (vcam == null)
             {
-                Debug.LogWarning("[CameraTargetAssigner] No CinemachineVirtualCamera " +
+                Debug.LogWarning("[CameraTargetAssigner] No CinemachineCamera " +
                                  "on this GameObject.");
                 return;
             }
 
-            vcam.Follow = player.transform;
-            vcam.LookAt = player.transform;
+            vcam.Target.TrackingTarget = player.transform;
+            vcam.Target.LookAtTarget = player.transform;
 
             Debug.Log("[CameraTargetAssigner] Camera target assigned to DrMaria.");
         }

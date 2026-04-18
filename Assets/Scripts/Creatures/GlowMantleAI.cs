@@ -80,8 +80,6 @@ namespace TerrasHeart.Creatures
         private Rigidbody2D    _playerRb;
         private AdaptationManager _adaptationManager;
 
-        private bool _isBeingScanned;
-
         // ─────────────────────────────────────────────────────────────────────
         // Unity Lifecycle
         // ─────────────────────────────────────────────────────────────────────
@@ -228,10 +226,9 @@ namespace TerrasHeart.Creatures
 
         public CreatureDataSO GetData() => _data;
 
-        public void OnScanBegin()      { _isBeingScanned = true;  }
-        public void OnScanComplete()   { _isBeingScanned = false; }
-        public void OnScanInterrupted(){ _isBeingScanned = false; }
-
+        public void OnScanBegin() { }
+        public void OnScanComplete() { }
+        public void OnScanInterrupted() { }
         // ─────────────────────────────────────────────────────────────────────
         // Gizmos
         // ─────────────────────────────────────────────────────────────────────

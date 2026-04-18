@@ -79,7 +79,6 @@ namespace TerrasHeart.Creatures
         private float   _resetTimer;
 
         private Transform _playerTransform;
-        private bool      _isBeingScanned;
 
         // ─────────────────────────────────────────────────────────────────────
         // Unity Lifecycle
@@ -212,22 +211,18 @@ namespace TerrasHeart.Creatures
 
         public void OnScanBegin()
         {
-            _isBeingScanned = true;
             // Future: trigger "being scanned" visual state
         }
 
         public void OnScanComplete()
         {
-            _isBeingScanned = false;
             // Future: trigger post-scan reaction (brief light pulse, then resume)
         }
 
         public void OnScanInterrupted()
         {
-            _isBeingScanned = false;
             // Future: revert "being scanned" visual state
         }
-
         // ─────────────────────────────────────────────────────────────────────
         // Gizmos
         // ─────────────────────────────────────────────────────────────────────

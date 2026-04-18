@@ -163,18 +163,15 @@ namespace TerrasHeart.Creatures
 
         public void OnScanBegin()
         {
-            _isBeingScanned = true;
         }
 
         public void OnScanComplete()
         {
-            _isBeingScanned = false;
             // Future: post-scan surface animation, then standard submerge cycle continues
         }
 
         public void OnScanInterrupted()
         {
-            _isBeingScanned = false;
         }
 
         // ─────────────────────────────────────────────────────────────────────

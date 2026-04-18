@@ -39,7 +39,7 @@ namespace TerrasHeart.WorldState
             }
 
             // Find the persistent BiomeHealthManager on GameManagers
-            BiomeHealthManager manager = FindFirstObjectByType<BiomeHealthManager>();
+            BiomeHealthManager manager = FindAnyObjectByType<BiomeHealthManager>();
 
             if (manager == null)
             {

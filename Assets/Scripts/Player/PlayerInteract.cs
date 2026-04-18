@@ -7,7 +7,6 @@ public class PlayerInteract : MonoBehaviour
     public float interactRadius = 3f;
     public LayerMask interactableLayer;
     public TMP_Text promptUI;
-
     private DialogueTrigger current;
 
     void Update()
@@ -17,15 +16,20 @@ public class PlayerInteract : MonoBehaviour
             interactRadius,
             interactableLayer
         );
-
         current = hit != null ? hit.GetComponent<DialogueTrigger>() : null;
 
-        bool dialogueRunning = current != null && current.dialogueRunner != null && current.dialogueRunner.IsDialogueRunning;
-        promptUI.enabled = current != null && !dialogueRunning;
+        bool dialogueRunning = current != null
+            && current.dialogueRunner != null
+            && current.dialogueRunner.IsDialogueRunning;
 
-        if (current != null && !dialogueRunning && Keyboard.current.eKey.wasPressedThisFrame)
+        if (promptUI != null)
+            promptUI.enabled = current != null && !dialogueRunning;
+
+        if (current != null && !dialogueRunning
+            && Keyboard.current.eKey.wasPressedThisFrame)
         {
-            promptUI.enabled = false;
+            if (promptUI != null)
+                promptUI.enabled = false;
             current.TriggerDialogue();
         }
     }

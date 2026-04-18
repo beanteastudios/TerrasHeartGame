@@ -67,7 +67,7 @@ namespace TerrasHeart.Creatures
             else
                 Debug.LogWarning("[TarnCreeperAI] Player not found.");
 
-            _biomeHealthManager = FindFirstObjectByType<BiomeHealthManager>();
+            _biomeHealthManager = FindAnyObjectByType<BiomeHealthManager>();
             if (_biomeHealthManager == null)
                 Debug.LogWarning("[TarnCreeperAI] BiomeHealthManager not found.");
         }
