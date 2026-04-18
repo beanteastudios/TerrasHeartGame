@@ -10,8 +10,8 @@
 // Every scan decision — alive vs dead — has a real consequence here.
 // EcologicalHealthVolume listens to OnBiomeHealthChanged and drives URP visuals.
 //
-// One BiomeHealthManager per scene. In Phase 1, biome transitions will
-// either carry or reset health state via the save system.
+// Step 5 addition: InitialiseForScene() — called by BiomeHealthInitializer
+// in each scene to hot-swap the config after GameManagers persists across loads.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using UnityEngine;
@@ -23,7 +23,10 @@ namespace TerrasHeart.WorldState
     public class BiomeHealthManager : MonoBehaviour
     {
         [Header("Configuration")]
-        [Tooltip("Assign the BiomeHealthConfig SO for this scene's biome.")]
+        [Tooltip("Assign the BiomeHealthConfig SO for this scene's biome. " +
+                 "In Step 5 this is overridden at runtime by BiomeHealthInitializer " +
+                 "when scenes are loaded — but assign PrologueHealth.asset here " +
+                 "as the default for the Prologue scene.")]
         [SerializeField] private BiomeHealthConfigSO _config;
 
         // ─── Runtime State ────────────────────────────────────────────────────
@@ -73,16 +76,26 @@ namespace TerrasHeart.WorldState
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // Scan Event Handler
+        // Scene Initialisation — called by BiomeHealthInitializer
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Reacts to every completed scan.
-        /// Alive scan → small restoration (studying without harming).
-        /// Dead scan → health penalty (ecological cost already paid).
-        ///
-        /// Only reacts to scans from this biome — ignores scans from other zones.
+        /// Hot-swaps the biome config when a new scene loads.
+        /// Called by BiomeHealthInitializer which lives in each scene.
+        /// Resets health to the new config's starting value and fires the
+        /// initial health event so EcologicalHealthVolume updates immediately.
         /// </summary>
+        public void InitialiseForScene(BiomeHealthConfigSO config)
+        {
+            _config        = config;
+            _currentHealth = config.StartingHealth;
+            FireHealthEvent();
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Scan Event Handler
+        // ─────────────────────────────────────────────────────────────────────
+
         private void HandleScanComplete(ScanResult result)
         {
             if (_config == null || result?.SourceData == null) return;
@@ -91,17 +104,13 @@ namespace TerrasHeart.WorldState
             if (result.SourceData.BiomeID != _config.BiomeID) return;
 
             if (result.WasAlive)
-            {
                 ApplyChange(_config.ScanRestoration, "alive scan");
-            }
             else
-            {
                 ApplyChange(-_config.KillPenalty, "dead scan");
-            }
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // Public API — for future combat system
+        // Public API
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
@@ -116,7 +125,8 @@ namespace TerrasHeart.WorldState
 
         /// <summary>
         /// Call when Dr. Maria tames and scans a corrupted creature.
-        /// Larger restoration reward — meaningful ecological act.
+        /// Larger restoration reward than a standard alive scan.
+        /// Called by TarnCreeperAI.OnScanComplete().
         /// </summary>
         public void ApplyCorruptedRestoration()
         {

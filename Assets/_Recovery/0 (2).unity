@@ -135,14 +135,11 @@ GameObject:
   - component: {fileID: 7834654}
   - component: {fileID: 7834655}
   - component: {fileID: 7834658}
-  - component: {fileID: 7834661}
   - component: {fileID: 7834657}
   - component: {fileID: 7834656}
-  - component: {fileID: 7834659}
-  - component: {fileID: 7834660}
   m_Layer: 7
   m_Name: DrMaria
-  m_TagString: Player
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -388,49 +385,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: df679d6b9d6a0ca488e3914b0d529e81, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Adaptations.SpecimenInventory
---- !u!114 &7834659
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7834648}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 759c2db5547da6b4885dd57f0ff7b845, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Systems.PersistentEntity
---- !u!114 &7834660
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7834648}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 841697befbc16a64f99b579c2336e60a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Combat.PulseLanceController
-  _range: 8
-  _subduePerHit: 10
-  _fireCooldown: 0.4
-  _hitLayerMask:
-    serializedVersion: 2
-    m_Bits: 256
-  _fireOrigin: {fileID: 0}
---- !u!114 &7834661
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7834648}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a0ef61328e5f23b41be9db2bfa766c43, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Environment.CraftingMaterialInventory
 --- !u!1 &11509934
 GameObject:
   m_ObjectHideFlags: 0
@@ -2842,38 +2796,6 @@ SpriteRenderer:
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
   m_SpriteSortPoint: 0
---- !u!1 &1213568259
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1213568260}
-  m_Layer: 0
-  m_Name: Triggers
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &1213568260
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1213568259}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 2.10958, y: 5.32301, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 2146199440}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1233656758
 GameObject:
   m_ObjectHideFlags: 0
@@ -4482,7 +4404,6 @@ GameObject:
   - component: {fileID: 1880077952}
   - component: {fileID: 1880077954}
   - component: {fileID: 1880077955}
-  - component: {fileID: 1880077956}
   m_Layer: 0
   m_Name: GameManagers
   m_TagString: Untagged
@@ -4551,18 +4472,6 @@ MonoBehaviour:
   _startingAssignments:
   - Member: 1
     Task: 1
---- !u!114 &1880077956
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1880077951}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 759c2db5547da6b4885dd57f0ff7b845, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Systems.PersistentEntity
 --- !u!1 &1918582599
 GameObject:
   m_ObjectHideFlags: 0
@@ -4785,99 +4694,6 @@ Transform:
   - {fileID: 365804531}
   m_Father: {fileID: 1918582600}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &2146199439
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2146199440}
-  - component: {fileID: 2146199442}
-  - component: {fileID: 2146199441}
-  m_Layer: 0
-  m_Name: ExitTrigger_ToMeridian
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &2146199440
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2146199439}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 23.25, y: -4.8, z: 0}
-  m_LocalScale: {x: 2, y: 3, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 1213568260}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2146199441
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2146199439}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 71e3c88468d22e740946113ce6df264e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Systems.SceneTransitionTrigger
-  _targetScene: MeridianBase
-  _targetSpawnID: meridian_main
---- !u!61 &2146199442
-BoxCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2146199439}
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 0
-  m_UsedByEffector: 0
-  m_CompositeOperation: 0
-  m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 0}
-  m_SpriteTilingProperty:
-    border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0, y: 0}
-    oldSize: {x: 0, y: 0}
-    newSize: {x: 0, y: 0}
-    adaptiveTilingThreshold: 0
-    drawMode: 0
-    adaptiveTiling: 0
-  m_AutoTiling: 0
-  m_Size: {x: 1, y: 1}
-  m_EdgeRadius: 0
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -4896,4 +4712,3 @@ SceneRoots:
   - {fileID: 384829295}
   - {fileID: 1880077953}
   - {fileID: 1427377161}
-  - {fileID: 1213568260}
