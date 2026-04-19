@@ -363,6 +363,7 @@ MonoBehaviour:
   _adaptationManager: {fileID: 7834657}
   _availableBlueprints:
   - {fileID: 11400000, guid: 5aa33450579f3fd45920a2a465f48f9e, type: 2}
+  - {fileID: 11400000, guid: 4926c3ea8fe1fef47800a94fd4368e82, type: 2}
 --- !u!114 &7834657
 MonoBehaviour:
   m_ObjectHideFlags: 0
