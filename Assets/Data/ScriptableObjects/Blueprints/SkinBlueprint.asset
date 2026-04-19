@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ee1c322d81005424da237658089ac1a4, type: 3}
   m_Name: SkinBlueprint
   m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Adaptations.BlueprintSO
-  _yieldsAdaptation: {fileID: 0}
+  _yieldsAdaptation: {fileID: 11400000, guid: bc617dc52bada3b40bfb0153196ff847, type: 2}
   _requiredCreature: {fileID: 11400000, guid: ea225ecf9c488a347924ce1d053d3a57, type: 2}
   _minimumTier: 2
   _requiredCount: 2

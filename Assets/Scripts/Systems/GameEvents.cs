@@ -5,6 +5,9 @@
 //
 // Step 5 addition: OnResourceCollected — fired by ResourceNode on E-key pickup.
 // Consumed by CraftingMaterialInventory on DrMaria.
+//
+// TestLevel addition: OnThrowInput — fired by PlayerController on T key press.
+// Consumed by ThrowController (future — BrineglowDescent session).
 // ─────────────────────────────────────────────────────────────────────────────
 
 using System;
@@ -36,9 +39,9 @@ namespace TerrasHeart.Events
         /// </summary>
         public static event Action OnScanInterrupted;
 
-        public static void RaiseScanComplete(ScanResult result)  => OnScanComplete?.Invoke(result);
-        public static void RaiseScanBegin(IScannable target)     => OnScanBegin?.Invoke(target);
-        public static void RaiseScanInterrupted()                => OnScanInterrupted?.Invoke();
+        public static void RaiseScanComplete(ScanResult result) => OnScanComplete?.Invoke(result);
+        public static void RaiseScanBegin(IScannable target) => OnScanBegin?.Invoke(target);
+        public static void RaiseScanInterrupted() => OnScanInterrupted?.Invoke();
 
         // ─── Adaptations ──────────────────────────────────────────────────────
 
@@ -64,7 +67,7 @@ namespace TerrasHeart.Events
         public static void RaiseBiomeHealthChanged(string biomeID, float newHealth) =>
             OnBiomeHealthChanged?.Invoke(biomeID, newHealth);
 
-        // ─── Resources — Step 5 addition ─────────────────────────────────────
+        // ─── Resources ────────────────────────────────────────────────────────
 
         /// <summary>
         /// Raised when Dr. Maria picks up a resource node (E key).
@@ -76,11 +79,23 @@ namespace TerrasHeart.Events
         public static void RaiseResourceCollected(ResourceNodeType nodeType, int amount) =>
             OnResourceCollected?.Invoke(nodeType, amount);
 
+        // ─── Player Actions ───────────────────────────────────────────────────
+
+        /// <summary>
+        /// Raised when the player presses the throw key (T).
+        /// Consumed by: ThrowController (future — BrineglowDescent session).
+        /// No arguments — ThrowController will determine what is thrown based
+        /// on selected inventory item at the time of the event.
+        /// </summary>
+        public static event Action OnThrowInput;
+
+        public static void RaiseThrowInput() => OnThrowInput?.Invoke();
+
         // ─── Crew (reserved) ─────────────────────────────────────────────────
 
         /// <summary>
         /// Raised when a crew member's morale value changes.
-        /// Args: crewMemberName (string), newMoraleValue (float 0–100).
+        /// Args: crewMemberName (string), newMorale (float 0–100).
         /// </summary>
         public static event Action<string, float> OnCrewMoraleChanged;
 

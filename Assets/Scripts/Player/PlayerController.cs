@@ -3,25 +3,23 @@
 // Path: Assets/Scripts/Player/PlayerController.cs
 // Terra's Heart — Dr. Maria's movement controller.
 //
-// Updated from original:
-//   - Added namespace TerrasHeart.Player
-//   - Converted public fields to [SerializeField] private (project standard)
-//   - Cached Rigidbody2D in Awake (not Start)
-//   - Added AdaptationManager reference for jump and move speed bonuses
-//   - Jump force: base + AdaptationManager.GetJumpBonus()
-//   - Move speed: base + AdaptationManager.GetMoveSpeedBonus()
+// Updated:
+//   - Added slow walk (Left Shift held) — reduces move speed below creature
+//     detection threshold. Tune _slowWalkSpeed to stay below
+//     CaveLuminothAI._slowSpeedThreshold (currently 1.5).
+//   - Added throw input stub (T key) — fires GameEvents.RaiseThrowInput().
+//     No throw logic yet — wired in BrineglowDescent session.
 //
 // ⚠ AFTER REPLACING THIS SCRIPT re-assign in Inspector:
 //   - Ground Check  → drag GroundCheck child transform
 //   - Ground Layer  → select Ground layer
-//   - Adaptation Manager → drag AdaptationManager component (add it to DrMaria first)
-//
-// Input: Keyboard.current polling (Option A — matches ScannerController).
+//   - Adaptation Manager → drag AdaptationManager component on DrMaria
 // ─────────────────────────────────────────────────────────────────────────────
 
 using UnityEngine;
 using UnityEngine.InputSystem;
 using TerrasHeart.Adaptations;
+using TerrasHeart.Events;
 
 namespace TerrasHeart.Player
 {
@@ -30,6 +28,11 @@ namespace TerrasHeart.Player
     {
         [Header("Movement")]
         [SerializeField] private float _moveSpeed = 5f;
+
+        [Tooltip("Speed when Left Shift is held. Must stay below CaveLuminothAI " +
+                 "Slow Speed Threshold (default 1.5) to avoid detection.")]
+        [SerializeField] private float _slowWalkSpeed = 1.2f;
+
         [SerializeField] private float _jumpForce = 10f;
 
         [Header("Ground Check")]
@@ -38,15 +41,15 @@ namespace TerrasHeart.Player
         [SerializeField] private LayerMask _groundLayer;
 
         [Header("Adaptations")]
-        [Tooltip("Assign the AdaptationManager component on DrMaria. " +
-                 "If left empty, adaptation bonuses are ignored (base stats only).")]
+        [Tooltip("Assign the AdaptationManager component on DrMaria.")]
         [SerializeField] private AdaptationManager _adaptationManager;
 
         // ─── Private State ────────────────────────────────────────────────────
 
         private Rigidbody2D _rb;
-        private bool        _isGrounded;
-        private Vector2     _moveInput;
+        private bool _isGrounded;
+        private Vector2 _moveInput;
+        private bool _isSlowWalking;
 
         // ─────────────────────────────────────────────────────────────────────
         // Unity Lifecycle
@@ -65,12 +68,16 @@ namespace TerrasHeart.Player
             HandleMovementInput(kb);
             CheckGround();
             HandleJumpInput(kb);
+            HandleThrowInput(kb);
             FlipSprite();
         }
 
         private void FixedUpdate()
         {
-            float speed = _moveSpeed + GetMoveSpeedBonus();
+            float speed = _isSlowWalking
+                ? _slowWalkSpeed
+                : _moveSpeed + GetMoveSpeedBonus();
+
             _rb.linearVelocity = new Vector2(_moveInput.x * speed, _rb.linearVelocity.y);
         }
 
@@ -81,9 +88,12 @@ namespace TerrasHeart.Player
         private void HandleMovementInput(Keyboard kb)
         {
             float horizontal = 0f;
-            if (kb.leftArrowKey.isPressed  || kb.aKey.isPressed) horizontal = -1f;
-            if (kb.rightArrowKey.isPressed || kb.dKey.isPressed) horizontal =  1f;
+            if (kb.leftArrowKey.isPressed || kb.aKey.isPressed) horizontal = -1f;
+            if (kb.rightArrowKey.isPressed || kb.dKey.isPressed) horizontal = 1f;
             _moveInput = new Vector2(horizontal, 0f);
+
+            // Left Shift held = slow walk
+            _isSlowWalking = kb.leftShiftKey.isPressed;
         }
 
         private void HandleJumpInput(Keyboard kb)
@@ -96,6 +106,16 @@ namespace TerrasHeart.Player
             }
         }
 
+        private void HandleThrowInput(Keyboard kb)
+        {
+            if (kb.tKey.wasPressedThisFrame)
+            {
+                // Stub — throw logic implemented in BrineglowDescent session.
+                GameEvents.RaiseThrowInput();
+                Debug.Log("[PlayerController] Throw input registered — no throw logic yet.");
+            }
+        }
+
         // ─────────────────────────────────────────────────────────────────────
         // Ground Check
         // ─────────────────────────────────────────────────────────────────────
@@ -105,8 +125,7 @@ namespace TerrasHeart.Player
             _isGrounded = Physics2D.OverlapCircle(
                 _groundCheck.position,
                 _groundCheckRadius,
-                _groundLayer
-            );
+                _groundLayer);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -115,7 +134,7 @@ namespace TerrasHeart.Player
 
         private void FlipSprite()
         {
-            if (_moveInput.x > 0f) transform.localScale = new Vector3( 0.5f, 1f, 1f);
+            if (_moveInput.x > 0f) transform.localScale = new Vector3(0.5f, 1f, 1f);
             if (_moveInput.x < 0f) transform.localScale = new Vector3(-0.5f, 1f, 1f);
         }
 
