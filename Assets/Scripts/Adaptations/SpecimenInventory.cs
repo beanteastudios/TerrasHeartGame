@@ -9,6 +9,8 @@
 // (species, tier) pair. Stacks accumulate count as the player scans more.
 //
 // Queried by AdaptationManager.TryCraft() to check and consume requirements.
+//
+// V7 naming pass: AurTouched → NahiTouched in ConsumeSpecimens tier loop.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using System.Collections.Generic;
@@ -81,8 +83,8 @@ namespace TerrasHeart.Adaptations
                 return false;
             }
 
-            // Consume from highest tier first to preserve lower-tier specimens
-            for (int tier = (int)SpecimenTier.AurTouched; tier >= (int)minimumTier && amount > 0; tier--)
+            // Consume from highest tier first to preserve lower-tier specimens.
+            for (int tier = (int)SpecimenTier.NahiTouched; tier >= (int)minimumTier && amount > 0; tier--)
             {
                 SpecimenStack stack = FindStack(creature, (SpecimenTier)tier);
                 if (stack == null || stack.Count == 0) continue;

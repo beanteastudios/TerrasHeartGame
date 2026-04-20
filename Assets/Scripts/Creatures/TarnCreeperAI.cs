@@ -8,28 +8,34 @@
 //           Rigidbody2D for movement toward player
 //
 // STATE MACHINE:
-//   Idle ──► Aggro      Player enters _aggroRadius.
-//   Aggro ──► Restored  Subdue health reaches 0 via PulseLance hits.
-//   Restored ──► PostScan  Player scans during window, or window expires.
+//   Idle ──► Aggro             Player enters _aggroRadius.
+//   Aggro ──► RestoredErratic  Subdue health reaches 0, no food pre-placed.
+//   Aggro ──► RestoredSettled  Subdue health reaches 0, food was pre-placed.
+//   RestoredErratic ──► RestoredSettled  Food placed during restoration window.
+//   RestoredErratic / RestoredSettled ──► PostScan  Scan completes or window expires.
 //
-// ICorruptedScannable marker: tells ScannerController that a successful scan
-// of this creature is a tame-and-scan completion. ScanResult.IsRestoredCorrupted
-// is set to true, and BiomeHealthManager applies CorruptedRestoration (+15)
-// via HandleScanComplete rather than the standard ScanRestoration (+3).
+// THREE-TIER SCAN SYSTEM:
+//   Scan during RestoredErratic           → Rare         (_data)
+//   Food placed during restoration window → Exceptional  (_dataExceptional)
+//   Food placed before subduing           → NahiTouched  (_dataNahiTouched)
 //
-// Phase B Step 1 — Bug fix:
-//   Removed direct _biomeHealthManager reference and ApplyCorruptedRestoration()
-//   call from OnScanComplete. All health changes now route exclusively through
-//   BiomeHealthManager.HandleScanComplete via the event bus. No direct calls,
-//   no double-counting.
+//   GetData() returns the correct SO based on state and preparation flag.
+//   BiomeHealthManager always applies CorruptedRestoration (+15) via
+//   ICorruptedScannable regardless of tier — tier only changes specimen reward.
 //
-// Phase B Step 5 (upcoming):
-//   Three-tier scan system — pre-placement food detection, erratic vs settled
-//   restoration states, tier selection by preparation level.
+// FOOD DETECTION:
+//   Subscribes to GameEvents.OnFoodPlaced.
+//   Food within _foodDetectionRange during Idle/Aggro → _foodPlacedBeforeRestoration = true.
+//   Food within _foodDetectionRange during RestoredErratic → transitions to RestoredSettled.
+//   Same Biological material cost as Cave Luminoth food throw.
+//
+// Phase B Step 5.
+// V7 naming pass: AurTouched → NahiTouched throughout.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using UnityEngine;
 using TerrasHeart.Scanner;
+using TerrasHeart.Events;
 
 namespace TerrasHeart.Creatures
 {
@@ -37,27 +43,55 @@ namespace TerrasHeart.Creatures
     [RequireComponent(typeof(Rigidbody2D))]
     public class TarnCreeperAI : MonoBehaviour, IScannable, ICorruptedScannable
     {
+        // ─── Scan Data ────────────────────────────────────────────────────────
+
         [Header("Scan Data")]
-        [Tooltip("Assign TarnCreeperData.asset — BiomeID must be 'BrineglowDescent'.")]
+        [Tooltip("Assign TarnCreeperData.asset — BiomeID 'BrineglowDescent'. " +
+                 "Alive tier: Rare. Used when player scans with no preparation.")]
         [SerializeField] private CreatureDataSO _data;
+
+        [Tooltip("Assign TarnCreeperDataExceptional.asset — Alive tier: Exceptional. " +
+                 "Used when food was placed during the restoration window.")]
+        [SerializeField] private CreatureDataSO _dataExceptional;
+
+        [Tooltip("Assign TarnCreeperDataNahiTouched.asset — Alive tier: NahiTouched. " +
+                 "Used when food was placed before subduing (full ecological anticipation).")]
+        [SerializeField] private CreatureDataSO _dataNahiTouched;
+
+        // ─── Aggro ────────────────────────────────────────────────────────────
 
         [Header("Aggro")]
         [SerializeField] private float _aggroRadius = 5f;
         [SerializeField] private float _moveSpeed = 2.5f;
 
+        // ─── Subdue ───────────────────────────────────────────────────────────
+
         [Header("Subdue")]
         [Tooltip("Total subdue damage required to trigger restoration. ~3-5 hits.")]
         [SerializeField] private float _maxSubdueHealth = 30f;
 
-        [Header("Scan Window")]
-        [Tooltip("Seconds scan window stays open after restoration. Phase A spec: 4s.")]
-        [SerializeField] private float _scanWindowDuration = 4f;
+        // ─── Scan Window ──────────────────────────────────────────────────────
 
-        public enum CreepState { Idle, Aggro, Restored, PostScan }
+        [Header("Scan Window")]
+        [Tooltip("Seconds scan window stays open after restoration. " +
+                 "Must exceed ScannerConfig.ScanHoldDuration to guarantee a full scan.")]
+        [SerializeField] private float _scanWindowDuration = 6f;
+
+        // ─── Food Detection ───────────────────────────────────────────────────
+
+        [Header("Food Detection")]
+        [Tooltip("Food must land within this distance to count as pre-placed or " +
+                 "in-window placement. Should be generous — the throw arc is imprecise.")]
+        [SerializeField] private float _foodDetectionRange = 5f;
+
+        // ─── Runtime State ────────────────────────────────────────────────────
+
+        public enum CreepState { Idle, Aggro, RestoredErratic, RestoredSettled, PostScan }
         public CreepState State { get; private set; } = CreepState.Idle;
 
         private float _currentSubdueHealth;
         private float _scanWindowTimer;
+        private bool _foodPlacedBeforeRestoration;
         private Rigidbody2D _rb;
         private Transform _playerTransform;
 
@@ -81,12 +115,16 @@ namespace TerrasHeart.Creatures
                 Debug.LogWarning("[TarnCreeperAI] Player not found.");
         }
 
+        private void OnEnable() => GameEvents.OnFoodPlaced += HandleFoodPlaced;
+        private void OnDisable() => GameEvents.OnFoodPlaced -= HandleFoodPlaced;
+
         private void Update()
         {
             switch (State)
             {
                 case CreepState.Idle: UpdateIdle(); break;
-                case CreepState.Restored: UpdateRestored(); break;
+                case CreepState.RestoredErratic: UpdateRestoredErratic(); break;
+                case CreepState.RestoredSettled: UpdateRestoredSettled(); break;
             }
         }
 
@@ -110,13 +148,23 @@ namespace TerrasHeart.Creatures
             }
         }
 
-        private void UpdateRestored()
+        private void UpdateRestoredErratic()
         {
             _scanWindowTimer += Time.deltaTime;
             if (_scanWindowTimer >= _scanWindowDuration)
             {
                 State = CreepState.PostScan;
-                Debug.Log("[TarnCreeperAI] Scan window expired.");
+                Debug.Log("[TarnCreeperAI] Scan window expired (erratic).");
+            }
+        }
+
+        private void UpdateRestoredSettled()
+        {
+            _scanWindowTimer += Time.deltaTime;
+            if (_scanWindowTimer >= _scanWindowDuration)
+            {
+                State = CreepState.PostScan;
+                Debug.Log("[TarnCreeperAI] Scan window expired (settled).");
             }
         }
 
@@ -128,20 +176,60 @@ namespace TerrasHeart.Creatures
         }
 
         // ─────────────────────────────────────────────────────────────────────
+        // Food Event Handler
+        // ─────────────────────────────────────────────────────────────────────
+
+        private void HandleFoodPlaced(Vector2 foodPosition)
+        {
+            float dist = Vector2.Distance(transform.position, foodPosition);
+            if (dist > _foodDetectionRange) return;
+
+            switch (State)
+            {
+                case CreepState.Idle:
+                case CreepState.Aggro:
+                    _foodPlacedBeforeRestoration = true;
+                    Debug.Log($"[TarnCreeperAI] Food pre-placed ({dist:F1}u). " +
+                              "NahiTouched tier primed.");
+                    break;
+
+                case CreepState.RestoredErratic:
+                    State = CreepState.RestoredSettled;
+                    _scanWindowTimer = 0f;
+                    Debug.Log($"[TarnCreeperAI] Food placed during window ({dist:F1}u). " +
+                              "State → RestoredSettled. Exceptional tier primed.");
+                    break;
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
         // Combat
         // ─────────────────────────────────────────────────────────────────────
 
         public void ApplySubdueDamage(float damage)
         {
             if (State != CreepState.Aggro) return;
+
             _currentSubdueHealth -= damage;
             Debug.Log($"[TarnCreeperAI] Subdue: {_currentSubdueHealth:F0}/{_maxSubdueHealth:F0}");
+
             if (_currentSubdueHealth <= 0f)
             {
-                State = CreepState.Restored;
-                _scanWindowTimer = 0f;
                 _rb.linearVelocity = Vector2.zero;
-                Debug.Log($"[TarnCreeperAI] RESTORED. Scan window: {_scanWindowDuration}s.");
+                _scanWindowTimer = 0f;
+
+                if (_foodPlacedBeforeRestoration)
+                {
+                    State = CreepState.RestoredSettled;
+                    Debug.Log($"[TarnCreeperAI] RESTORED (settled — food was pre-placed). " +
+                              $"Scan window: {_scanWindowDuration}s. NahiTouched tier.");
+                }
+                else
+                {
+                    State = CreepState.RestoredErratic;
+                    Debug.Log($"[TarnCreeperAI] RESTORED (erratic — no preparation). " +
+                              $"Scan window: {_scanWindowDuration}s. Rare tier.");
+                }
             }
         }
 
@@ -149,19 +237,46 @@ namespace TerrasHeart.Creatures
         // IScannable
         // ─────────────────────────────────────────────────────────────────────
 
-        public bool IsAlive => State == CreepState.Restored || State == CreepState.PostScan;
-        public CreatureDataSO GetData() => _data;
+        public bool IsAlive =>
+            State == CreepState.RestoredErratic ||
+            State == CreepState.RestoredSettled ||
+            State == CreepState.PostScan;
+
+        /// <summary>
+        /// Returns the correct SO based on preparation tier:
+        ///   RestoredSettled + food pre-placed  → NahiTouched  (_dataNahiTouched)
+        ///   RestoredSettled + in-window food   → Exceptional  (_dataExceptional)
+        ///   RestoredErratic                    → Rare         (_data)
+        ///   Any other state                    → Rare         (_data)
+        /// Falls back to _data if the relevant SO is unassigned.
+        /// </summary>
+        public CreatureDataSO GetData()
+        {
+            if (State == CreepState.RestoredSettled)
+            {
+                if (_foodPlacedBeforeRestoration)
+                    return _dataNahiTouched != null ? _dataNahiTouched : _data;
+                else
+                    return _dataExceptional != null ? _dataExceptional : _data;
+            }
+
+            return _data;
+        }
+
         public void OnScanBegin() { }
         public void OnScanInterrupted() { }
 
         public void OnScanComplete()
         {
-            if (State != CreepState.Restored) return;
+            if (State != CreepState.RestoredErratic && State != CreepState.RestoredSettled)
+                return;
+
+            string tier = State == CreepState.RestoredSettled
+                ? (_foodPlacedBeforeRestoration ? "NahiTouched" : "Exceptional")
+                : "Rare";
+
             State = CreepState.PostScan;
-            // Health restoration is handled exclusively by BiomeHealthManager.HandleScanComplete
-            // via the event bus. ScanResult.IsRestoredCorrupted is true because this class
-            // implements ICorruptedScannable — no direct call needed here.
-            Debug.Log("[TarnCreeperAI] Scan complete. State → PostScan. " +
+            Debug.Log($"[TarnCreeperAI] Scan complete — {tier} tier. State → PostScan. " +
                       "Health restoration routed through BiomeHealthManager.");
         }
 
@@ -173,6 +288,9 @@ namespace TerrasHeart.Creatures
         {
             Gizmos.color = new Color(0.8f, 0.3f, 0f, 0.3f);
             Gizmos.DrawWireSphere(transform.position, _aggroRadius);
+
+            Gizmos.color = new Color(1f, 0.6f, 0f, 0.2f);
+            Gizmos.DrawWireSphere(transform.position, _foodDetectionRange);
         }
     }
 }

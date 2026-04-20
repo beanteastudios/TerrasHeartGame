@@ -4,6 +4,8 @@
 // Terra's Heart — What an adaptation actually does to Dr. Maria.
 // AdaptationManager queries these types to compute stat bonuses.
 // Extend this enum as new adaptation mechanics are added per biome.
+//
+// V7 naming pass: AurPerception → NahiPerception, AurResonance → NahiResonance
 // ─────────────────────────────────────────────────────────────────────────────
 
 namespace TerrasHeart.Adaptations
@@ -20,7 +22,7 @@ namespace TerrasHeart.Adaptations
 
         // ─── Eyes slot ───────────────────────────────────────────────────────
         DarkVision,         // Bool — player sees in dark caves
-        AurPerception,      // Bool — player can perceive Ancestor Thari resonance
+        NahiPerception,     // Bool — player can perceive Ancestor Thari (Kevnar) resonance
 
         // ─── Skin slot ───────────────────────────────────────────────────────
         ToxinResistance,    // Damage reduction from toxin sources
@@ -30,7 +32,7 @@ namespace TerrasHeart.Adaptations
         VineGrapple,        // Bool — unlocks grapple mechanic
 
         // ─── Core slot ───────────────────────────────────────────────────────
-        AurResonance,       // Bool — unlocks Aur-powered structure interaction
+        NahiResonance,      // Bool — unlocks Nahî-powered structure interaction
         HealingPulse        // Passive heal amount per second
     }
 }

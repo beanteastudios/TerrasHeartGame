@@ -2508,7 +2508,7 @@ Transform:
   m_GameObject: {fileID: 802737379}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -126.6, y: -0.4642, z: 0}
+  m_LocalPosition: {x: -116.99, y: -0.4642, z: 0}
   m_LocalScale: {x: 0.5, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2846,7 +2846,7 @@ Transform:
   m_GameObject: {fileID: 850002332}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -94.7, y: -2.75, z: 0}
+  m_LocalPosition: {x: 39.1, y: -2.75, z: 0}
   m_LocalScale: {x: 1.5, y: 1.5, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2865,9 +2865,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Creatures.GlowMantleAI
   _data: {fileID: 11400000, guid: 0afe518535d07744daf0cc345ac70202, type: 2}
-  _dataReceptive: {fileID: 11400000, guid: 68d6644b6ba30f0479bfd2339fbe00ab, type: 2}
-  _config: {fileID: 11400000, guid: 3489a59628186494bbd1e049a5a8e72b, type: 2}
-  _hud: {fileID: 2076394907}
   _patrolHalfWidth: 2
   _patrolSpeed: 1
   _aggroRadius: 4
@@ -4648,7 +4645,7 @@ Transform:
   m_GameObject: {fileID: 1929745058}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 145.3, y: -2.9, z: 0}
+  m_LocalPosition: {x: -96.7, y: -2.9, z: 0}
   m_LocalScale: {x: 1.2, y: 1.2, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4667,10 +4664,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Creatures.TarnCreeperAI
   _data: {fileID: 11400000, guid: bf2ae1e1f86f082429f70f5ffa3eb2fd, type: 2}
+  _dataExceptional: {fileID: 11400000, guid: 6130b42b736f8364b85dbeb8d76d6e9c, type: 2}
+  _dataNahiTouched: {fileID: 11400000, guid: 6882b56efe7622e46948032f2448dba7, type: 2}
   _aggroRadius: 5
   _moveSpeed: 2.5
   _maxSubdueHealth: 30
-  _scanWindowDuration: 4
+  _scanWindowDuration: 8
+  _foodDetectionRange: 8
 --- !u!61 &1929745061
 BoxCollider2D:
   m_ObjectHideFlags: 0
