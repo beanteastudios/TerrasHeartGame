@@ -12,20 +12,30 @@
 //   Aggro ──► Restored  Subdue health reaches 0 via PulseLance hits.
 //   Restored ──► PostScan  Player scans during window, or window expires.
 //
-// BIOME HEALTH RESTORATION:
-//   OnScanComplete calls BiomeHealthManager.ApplyCorruptedRestoration()
-//   for the larger restoration reward vs standard alive scan +3.
+// ICorruptedScannable marker: tells ScannerController that a successful scan
+// of this creature is a tame-and-scan completion. ScanResult.IsRestoredCorrupted
+// is set to true, and BiomeHealthManager applies CorruptedRestoration (+15)
+// via HandleScanComplete rather than the standard ScanRestoration (+3).
+//
+// Phase B Step 1 — Bug fix:
+//   Removed direct _biomeHealthManager reference and ApplyCorruptedRestoration()
+//   call from OnScanComplete. All health changes now route exclusively through
+//   BiomeHealthManager.HandleScanComplete via the event bus. No direct calls,
+//   no double-counting.
+//
+// Phase B Step 5 (upcoming):
+//   Three-tier scan system — pre-placement food detection, erratic vs settled
+//   restoration states, tier selection by preparation level.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using UnityEngine;
 using TerrasHeart.Scanner;
-using TerrasHeart.WorldState;
 
 namespace TerrasHeart.Creatures
 {
     [RequireComponent(typeof(Collider2D))]
     [RequireComponent(typeof(Rigidbody2D))]
-    public class TarnCreeperAI : MonoBehaviour, IScannable
+    public class TarnCreeperAI : MonoBehaviour, IScannable, ICorruptedScannable
     {
         [Header("Scan Data")]
         [Tooltip("Assign TarnCreeperData.asset — BiomeID must be 'BrineglowDescent'.")]
@@ -33,7 +43,7 @@ namespace TerrasHeart.Creatures
 
         [Header("Aggro")]
         [SerializeField] private float _aggroRadius = 5f;
-        [SerializeField] private float _moveSpeed   = 2.5f;
+        [SerializeField] private float _moveSpeed = 2.5f;
 
         [Header("Subdue")]
         [Tooltip("Total subdue damage required to trigger restoration. ~3-5 hits.")]
@@ -46,16 +56,19 @@ namespace TerrasHeart.Creatures
         public enum CreepState { Idle, Aggro, Restored, PostScan }
         public CreepState State { get; private set; } = CreepState.Idle;
 
-        private float              _currentSubdueHealth;
-        private float              _scanWindowTimer;
-        private Rigidbody2D        _rb;
-        private Transform          _playerTransform;
-        private BiomeHealthManager _biomeHealthManager;
+        private float _currentSubdueHealth;
+        private float _scanWindowTimer;
+        private Rigidbody2D _rb;
+        private Transform _playerTransform;
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Unity Lifecycle
+        // ─────────────────────────────────────────────────────────────────────
 
         private void Awake()
         {
-            _rb                  = GetComponent<Rigidbody2D>();
-            _rb.constraints      = RigidbodyConstraints2D.FreezeRotation;
+            _rb = GetComponent<Rigidbody2D>();
+            _rb.constraints = RigidbodyConstraints2D.FreezeRotation;
             _currentSubdueHealth = _maxSubdueHealth;
         }
 
@@ -66,17 +79,13 @@ namespace TerrasHeart.Creatures
                 _playerTransform = player.transform;
             else
                 Debug.LogWarning("[TarnCreeperAI] Player not found.");
-
-            _biomeHealthManager = FindAnyObjectByType<BiomeHealthManager>();
-            if (_biomeHealthManager == null)
-                Debug.LogWarning("[TarnCreeperAI] BiomeHealthManager not found.");
         }
 
         private void Update()
         {
             switch (State)
             {
-                case CreepState.Idle:     UpdateIdle();     break;
+                case CreepState.Idle: UpdateIdle(); break;
                 case CreepState.Restored: UpdateRestored(); break;
             }
         }
@@ -86,6 +95,10 @@ namespace TerrasHeart.Creatures
             if (State == CreepState.Aggro)
                 MoveTowardPlayer();
         }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // State Logic
+        // ─────────────────────────────────────────────────────────────────────
 
         private void UpdateIdle()
         {
@@ -110,9 +123,13 @@ namespace TerrasHeart.Creatures
         private void MoveTowardPlayer()
         {
             if (_playerTransform == null) return;
-            Vector2 dir        = ((Vector2)_playerTransform.position - _rb.position).normalized;
+            Vector2 dir = ((Vector2)_playerTransform.position - _rb.position).normalized;
             _rb.linearVelocity = dir * _moveSpeed;
         }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Combat
+        // ─────────────────────────────────────────────────────────────────────
 
         public void ApplySubdueDamage(float damage)
         {
@@ -121,12 +138,16 @@ namespace TerrasHeart.Creatures
             Debug.Log($"[TarnCreeperAI] Subdue: {_currentSubdueHealth:F0}/{_maxSubdueHealth:F0}");
             if (_currentSubdueHealth <= 0f)
             {
-                State            = CreepState.Restored;
+                State = CreepState.Restored;
                 _scanWindowTimer = 0f;
                 _rb.linearVelocity = Vector2.zero;
                 Debug.Log($"[TarnCreeperAI] RESTORED. Scan window: {_scanWindowDuration}s.");
             }
         }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // IScannable
+        // ─────────────────────────────────────────────────────────────────────
 
         public bool IsAlive => State == CreepState.Restored || State == CreepState.PostScan;
         public CreatureDataSO GetData() => _data;
@@ -137,9 +158,16 @@ namespace TerrasHeart.Creatures
         {
             if (State != CreepState.Restored) return;
             State = CreepState.PostScan;
-            _biomeHealthManager?.ApplyCorruptedRestoration();
-            Debug.Log("[TarnCreeperAI] Scan complete. Corrupted restoration applied.");
+            // Health restoration is handled exclusively by BiomeHealthManager.HandleScanComplete
+            // via the event bus. ScanResult.IsRestoredCorrupted is true because this class
+            // implements ICorruptedScannable — no direct call needed here.
+            Debug.Log("[TarnCreeperAI] Scan complete. State → PostScan. " +
+                      "Health restoration routed through BiomeHealthManager.");
         }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Gizmos
+        // ─────────────────────────────────────────────────────────────────────
 
         private void OnDrawGizmosSelected()
         {

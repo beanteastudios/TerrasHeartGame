@@ -6,16 +6,16 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/Prologue_MeridianOcean.unity
+    path: Assets/Scenes/Prologue_MeridianOcean/Prologue_MeridianOcean.unity
     guid: 950eddeef270bba4ca9ecba7a7c0b9a1
   - enabled: 1
-    path: Assets/Scenes/BrineglowDescent.unity
+    path: Assets/Scenes/BrineglowDescent/BrineglowDescent.unity
     guid: 90cc6660f825edf4fb6ec76ccff9c19f
   - enabled: 1
-    path: Assets/Scenes/MeridianBase.unity
+    path: Assets/Scenes/MeridianBase/MeridianBase.unity
     guid: 76afe95bf80114541b6e83bfe536c909
   - enabled: 1
-    path: Assets/Scenes/TestLevel.unity
+    path: Assets/Scenes/TestLevel/TestLevel.unity
     guid: 5c8f0b70e66319b48be29aaf33bc42c9
   m_configObjects:
     com.unity.addressableassets: {fileID: 11400000, guid: 917355f9129a7f346b826352822e74fe, type: 2}

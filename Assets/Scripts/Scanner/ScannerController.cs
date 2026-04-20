@@ -9,6 +9,11 @@
 // Effective scan duration = base × creature multiplier × crew multiplier
 // Example: 1.5s × 1.0 (creature) × 0.6 (Yuki on Research) = 0.9s
 //
+// Phase B Step 1 — Bug fix:
+//   CompleteScan now checks whether the target implements ICorruptedScannable
+//   and sets ScanResult.IsRestoredCorrupted accordingly.
+//   BiomeHealthManager reads this to route health correctly.
+//
 // Input: Keyboard.current polling — Scan key: F
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -16,6 +21,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using TerrasHeart.Events;
 using TerrasHeart.Crew;
+using TerrasHeart.Creatures;
 
 namespace TerrasHeart.Scanner
 {
@@ -37,10 +43,10 @@ namespace TerrasHeart.Scanner
 
         // ─── Runtime State ────────────────────────────────────────────────────
 
-        private bool       _isScanHeld;
-        private float      _scanProgress;
+        private bool _isScanHeld;
+        private float _scanProgress;
         private IScannable _currentTarget;
-        private bool       _facingRight = true;
+        private bool _facingRight = true;
 
         // ─────────────────────────────────────────────────────────────────────
         // Unity Lifecycle
@@ -77,8 +83,8 @@ namespace TerrasHeart.Scanner
         {
             if (kb.fKey.wasPressedThisFrame)
             {
-                _isScanHeld    = true;
-                _scanProgress  = 0f;
+                _isScanHeld = true;
+                _scanProgress = 0f;
                 _currentTarget = DetectTarget();
 
                 if (_currentTarget != null)
@@ -132,7 +138,6 @@ namespace TerrasHeart.Scanner
             CreatureDataSO data = _currentTarget.GetData();
             float creatureMultiplier = data != null ? data.ScanDurationMultiplier : 1f;
 
-            // Crew multiplier — 1.0 if CrewManager not assigned (no regression)
             float crewMultiplier = _crewManager != null
                 ? _crewManager.GetScanDurationMultiplier()
                 : 1f;
@@ -156,19 +161,26 @@ namespace TerrasHeart.Scanner
                 return;
             }
 
-            SpecimenTier tier   = data.GetTierFor(_currentTarget.IsAlive);
-            ScanResult   result = new ScanResult(data, tier, _currentTarget.IsAlive, Time.time);
+            SpecimenTier tier = data.GetTierFor(_currentTarget.IsAlive);
+
+            // If the target implements ICorruptedScannable the scan was a tame-and-scan
+            // completion on a restored corrupted creature. BiomeHealthManager reads this
+            // flag to apply CorruptedRestoration instead of ScanRestoration.
+            bool isRestoredCorrupted = _currentTarget is ICorruptedScannable;
+
+            ScanResult result = new ScanResult(
+                data, tier, _currentTarget.IsAlive, Time.time, isRestoredCorrupted);
 
             _currentTarget.OnScanComplete();
             GameEvents.RaiseScanComplete(result);
 
-            // Log effective duration for crew bonus verification
-            float baseDuration       = _config != null ? _config.ScanHoldDuration : 1.5f;
-            float crewMultiplier     = _crewManager != null ? _crewManager.GetScanDurationMultiplier() : 1f;
-            float effectiveDuration  = baseDuration * data.ScanDurationMultiplier * crewMultiplier;
+            float baseDuration = _config != null ? _config.ScanHoldDuration : 1.5f;
+            float crewMultiplier = _crewManager != null ? _crewManager.GetScanDurationMultiplier() : 1f;
+            float effectiveDuration = baseDuration * data.ScanDurationMultiplier * crewMultiplier;
 
             Debug.Log($"[Scanner] ✓ SCAN COMPLETE ─ {data.SpeciesName} | " +
                       $"Tier: {tier} | Alive: {result.WasAlive} | " +
+                      $"RestoredCorrupted: {isRestoredCorrupted} | " +
                       $"Duration: {effectiveDuration:F2}s (crew ×{crewMultiplier:F2})");
 
             ResetScanState();
@@ -182,7 +194,7 @@ namespace TerrasHeart.Scanner
                 return null;
             }
 
-            Vector2 origin    = _scanOrigin.position;
+            Vector2 origin = _scanOrigin.position;
             Vector2 direction = _facingRight ? Vector2.right : Vector2.left;
 
             RaycastHit2D hit = Physics2D.Raycast(
@@ -207,8 +219,8 @@ namespace TerrasHeart.Scanner
 
         private void ResetScanState()
         {
-            _isScanHeld    = false;
-            _scanProgress  = 0f;
+            _isScanHeld = false;
+            _scanProgress = 0f;
             _currentTarget = null;
         }
 

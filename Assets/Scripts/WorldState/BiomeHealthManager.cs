@@ -7,11 +7,22 @@
 // Attach to: GameManagers (same GameObject as ResearchJournalManager)
 //
 // This is the "world remembers neglect" pillar in code.
-// Every scan decision — alive vs dead — has a real consequence here.
-// EcologicalHealthVolume listens to OnBiomeHealthChanged and drives URP visuals.
+// Every scan decision — alive vs dead, restored vs standard — has a real
+// consequence here. EcologicalHealthVolume listens to OnBiomeHealthChanged
+// and drives URP colour grade visuals.
 //
 // Step 5 addition: InitialiseForScene() — called by BiomeHealthInitializer
 // in each scene to hot-swap the config after GameManagers persists across loads.
+//
+// Phase B Step 1 — Bug fix:
+//   HandleScanComplete now branches on ScanResult.IsRestoredCorrupted.
+//   Corrupted creature restorations apply CorruptedRestoration (+15).
+//   Standard alive scans apply ScanRestoration (+3).
+//   Dead scans apply -KillPenalty.
+//   All health changes route through this single handler — no direct calls
+//   from creature AI scripts.
+//   ApplyCorruptedRestoration() removed: it was called directly by TarnCreeperAI,
+//   which caused double-counting. That direct reference has been removed.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using UnityEngine;
@@ -33,7 +44,7 @@ namespace TerrasHeart.WorldState
 
         private float _currentHealth;
 
-        // ─── Public read access ───────────────────────────────────────────────
+        // ─── Public Read Access ───────────────────────────────────────────────
 
         /// <summary>Current biome health (0–100). Read by EcologicalHealthVolume.</summary>
         public float CurrentHealth => _currentHealth;
@@ -70,8 +81,8 @@ namespace TerrasHeart.WorldState
 
         private void Start()
         {
-            // Fire initial health event so EcologicalHealthVolume sets the
-            // correct visual state at scene load — not just on first scan.
+            // Fire initial health event so EcologicalHealthVolume sets the correct
+            // visual state at scene load — not just on first scan.
             FireHealthEvent();
         }
 
@@ -87,25 +98,30 @@ namespace TerrasHeart.WorldState
         /// </summary>
         public void InitialiseForScene(BiomeHealthConfigSO config)
         {
-            _config        = config;
+            _config = config;
             _currentHealth = config.StartingHealth;
             FireHealthEvent();
         }
 
         // ─────────────────────────────────────────────────────────────────────
-        // Scan Event Handler
+        // Scan Event Handler — single source of truth for all scan-driven health
         // ─────────────────────────────────────────────────────────────────────
 
         private void HandleScanComplete(ScanResult result)
         {
             if (_config == null || result?.SourceData == null) return;
 
-            // Only react to creatures scanned in this biome
+            // Only react to creatures scanned in this biome.
             if (result.SourceData.BiomeID != _config.BiomeID) return;
 
-            if (result.WasAlive)
+            if (result.IsRestoredCorrupted)
+                // Tame-and-scan completion: larger restoration reward.
+                ApplyChange(_config.CorruptedRestoration, "corrupted creature restored");
+            else if (result.WasAlive)
+                // Standard live scan: small ecological restoration.
                 ApplyChange(_config.ScanRestoration, "alive scan");
             else
+                // Dead scan or kill: ecological penalty.
                 ApplyChange(-_config.KillPenalty, "dead scan");
         }
 
@@ -114,24 +130,14 @@ namespace TerrasHeart.WorldState
         // ─────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Call when Dr. Maria kills a healthy creature in this biome
-        /// without scanning it first. Full kill penalty applied.
+        /// Call when Dr. Maria kills a healthy creature in this biome without
+        /// scanning it first. Separate from the scan event path — wired up
+        /// when full combat kill detection is implemented.
         /// </summary>
         public void ApplyKillPenalty()
         {
             if (_config == null) return;
             ApplyChange(-_config.KillPenalty, "creature killed unscanned");
-        }
-
-        /// <summary>
-        /// Call when Dr. Maria tames and scans a corrupted creature.
-        /// Larger restoration reward than a standard alive scan.
-        /// Called by TarnCreeperAI.OnScanComplete().
-        /// </summary>
-        public void ApplyCorruptedRestoration()
-        {
-            if (_config == null) return;
-            ApplyChange(_config.CorruptedRestoration, "corrupted creature restored");
         }
 
         // ─────────────────────────────────────────────────────────────────────
