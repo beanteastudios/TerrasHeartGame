@@ -7,8 +7,10 @@
 //   - Added slow walk (Left Shift held) — reduces move speed below creature
 //     detection threshold. Tune _slowWalkSpeed to stay below
 //     CaveLuminothAI._slowSpeedThreshold (currently 1.5).
-//   - Added throw input stub (T key) — fires GameEvents.RaiseThrowInput().
-//     No throw logic yet — wired in BrineglowDescent session.
+//   - Added throw input (T key) — fires GameEvents.RaiseThrowInput().
+//   - Phase B Step 4: Added palette input (1, 2 keys) — fires
+//     GameEvents.RaisePaletteInput(index) for Glow-Mantle call-and-response.
+//     Always fires on key press — GlowMantleAI filters by state.
 //
 // ⚠ AFTER REPLACING THIS SCRIPT re-assign in Inspector:
 //   - Ground Check  → drag GroundCheck child transform
@@ -69,6 +71,7 @@ namespace TerrasHeart.Player
             CheckGround();
             HandleJumpInput(kb);
             HandleThrowInput(kb);
+            HandlePaletteInput(kb);
             FlipSprite();
         }
 
@@ -92,7 +95,6 @@ namespace TerrasHeart.Player
             if (kb.rightArrowKey.isPressed || kb.dKey.isPressed) horizontal = 1f;
             _moveInput = new Vector2(horizontal, 0f);
 
-            // Left Shift held = slow walk
             _isSlowWalking = kb.leftShiftKey.isPressed;
         }
 
@@ -109,9 +111,15 @@ namespace TerrasHeart.Player
         private void HandleThrowInput(Keyboard kb)
         {
             if (kb.tKey.wasPressedThisFrame)
-            {
                 GameEvents.RaiseThrowInput();
-            }
+        }
+
+        private void HandlePaletteInput(Keyboard kb)
+        {
+            // 1 = Cyan (index 0), 2 = Amber (index 1).
+            // Always fires — GlowMantleAI filters by encounter state.
+            if (kb.digit1Key.wasPressedThisFrame) GameEvents.RaisePaletteInput(0);
+            if (kb.digit2Key.wasPressedThisFrame) GameEvents.RaisePaletteInput(1);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -121,9 +129,7 @@ namespace TerrasHeart.Player
         private void CheckGround()
         {
             _isGrounded = Physics2D.OverlapCircle(
-                _groundCheck.position,
-                _groundCheckRadius,
-                _groundLayer);
+                _groundCheck.position, _groundCheckRadius, _groundLayer);
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -140,14 +146,10 @@ namespace TerrasHeart.Player
         // Adaptation Bonus Queries
         // ─────────────────────────────────────────────────────────────────────
 
-        private float GetJumpBonus()
-        {
-            return _adaptationManager != null ? _adaptationManager.GetJumpBonus() : 0f;
-        }
+        private float GetJumpBonus() =>
+            _adaptationManager != null ? _adaptationManager.GetJumpBonus() : 0f;
 
-        private float GetMoveSpeedBonus()
-        {
-            return _adaptationManager != null ? _adaptationManager.GetMoveSpeedBonus() : 0f;
-        }
+        private float GetMoveSpeedBonus() =>
+            _adaptationManager != null ? _adaptationManager.GetMoveSpeedBonus() : 0f;
     }
 }

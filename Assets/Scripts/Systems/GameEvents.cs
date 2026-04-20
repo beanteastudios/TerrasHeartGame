@@ -3,14 +3,8 @@
 // Path: Assets/Scripts/Systems/GameEvents.cs
 // Terra's Heart — Central static event bus.
 //
-// Step 5 addition: OnResourceCollected — fired by ResourceNode on E-key pickup.
-// Consumed by CraftingMaterialInventory on DrMaria.
-//
-// TestLevel addition: OnThrowInput — fired by PlayerController on T key press.
-// Consumed by ThrowController.
-//
-// Phase B Step 2 addition: OnFoodPlaced — fired by FoodMarker on Start().
-// Consumed by CaveLuminothAI (comfort trigger), TarnCreeperAI (pre-placement tier).
+// Phase B Step 4 addition: OnPaletteInput — fired by PlayerController on
+// digit keys 1 and 2. Consumed by GlowMantleAI and GlowMantleHUDController.
 // ─────────────────────────────────────────────────────────────────────────────
 
 using System;
@@ -88,8 +82,6 @@ namespace TerrasHeart.Events
         /// <summary>
         /// Raised when the player presses the throw key (T).
         /// Consumed by: ThrowController on DrMaria.
-        /// No arguments — ThrowController determines what is thrown based on
-        /// selected inventory item at the time of the event.
         /// </summary>
         public static event Action OnThrowInput;
 
@@ -98,14 +90,23 @@ namespace TerrasHeart.Events
         /// <summary>
         /// Raised by FoodMarker on Start() after it is placed in the world.
         /// Args: worldPosition (Vector2) — the exact landing point.
-        /// Consumed by: CaveLuminothAI (frighten vs comfort check),
-        ///              TarnCreeperAI (pre-placement tier detection).
-        /// Creature AI scripts check distance from this position to determine
-        /// their reaction — frighten radius or comfort range.
+        /// Consumed by: CaveLuminothAI, TarnCreeperAI.
         /// </summary>
         public static event Action<Vector2> OnFoodPlaced;
 
         public static void RaiseFoodPlaced(Vector2 position) => OnFoodPlaced?.Invoke(position);
+
+        /// <summary>
+        /// Raised when the player presses a palette key (1 or 2) for the
+        /// Glow-Mantle call-and-response encounter.
+        /// Args: index (int) — 0 = Cyan, 1 = Amber.
+        /// Consumed by: GlowMantleAI (sequence validation),
+        ///              GlowMantleHUDController (swatch flash).
+        /// Always raised on key press — GlowMantleAI filters by state.
+        /// </summary>
+        public static event Action<int> OnPaletteInput;
+
+        public static void RaisePaletteInput(int index) => OnPaletteInput?.Invoke(index);
 
         // ─── Crew (reserved) ─────────────────────────────────────────────────
 
