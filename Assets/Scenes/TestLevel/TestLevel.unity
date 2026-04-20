@@ -1473,6 +1473,11 @@ MonoBehaviour:
   _fleeSpeed: 4
   _fleeDistance: 5
   _resetDelay: 8
+  _frightenRadius: 1.8
+  _comfortRange: 7
+  _approachSpeed: 0.7
+  _feedingDuration: 6
+  _feedingBobMultiplier: 0.25
 --- !u!61 &730541026
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -3879,11 +3884,11 @@ Transform:
   m_GameObject: {fileID: 1643975863}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -3.48521, y: 5.8747697, z: 0}
+  m_LocalPosition: {x: -0.60834, y: 8.40776, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1785581337}
+  m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1698273691
 GameObject:
@@ -4028,7 +4033,6 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1732394105}
-  - {fileID: 1643975868}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1851227079
@@ -5235,9 +5239,10 @@ SpriteRenderer:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 499123001}
-  - {fileID: 1785581337}
   - {fileID: 802737392}
+  - {fileID: 1643975868}
+  - {fileID: 1785581337}
+  - {fileID: 499123001}
   - {fileID: 538185356}
   - {fileID: 1433768338}
   - {fileID: 1325728693}
