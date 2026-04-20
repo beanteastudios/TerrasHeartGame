@@ -110,9 +110,7 @@ namespace TerrasHeart.Player
         {
             if (kb.tKey.wasPressedThisFrame)
             {
-                // Stub — throw logic implemented in BrineglowDescent session.
                 GameEvents.RaiseThrowInput();
-                Debug.Log("[PlayerController] Throw input registered — no throw logic yet.");
             }
         }
 

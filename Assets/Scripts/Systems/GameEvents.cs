@@ -7,13 +7,17 @@
 // Consumed by CraftingMaterialInventory on DrMaria.
 //
 // TestLevel addition: OnThrowInput — fired by PlayerController on T key press.
-// Consumed by ThrowController (future — BrineglowDescent session).
+// Consumed by ThrowController.
+//
+// Phase B Step 2 addition: OnFoodPlaced — fired by FoodMarker on Start().
+// Consumed by CaveLuminothAI (comfort trigger), TarnCreeperAI (pre-placement tier).
 // ─────────────────────────────────────────────────────────────────────────────
 
 using System;
 using TerrasHeart.Scanner;
 using TerrasHeart.Adaptations;
 using TerrasHeart.Environment;
+using UnityEngine;
 
 namespace TerrasHeart.Events
 {
@@ -71,7 +75,7 @@ namespace TerrasHeart.Events
 
         /// <summary>
         /// Raised when Dr. Maria picks up a resource node (E key).
-        /// Args: nodeType (ResourceNodeType), amount (int — always 1 per pickup in Step 5).
+        /// Args: nodeType (ResourceNodeType), amount (int — always 1 per pickup).
         /// Consumed by: CraftingMaterialInventory on DrMaria.
         /// </summary>
         public static event Action<ResourceNodeType, int> OnResourceCollected;
@@ -83,13 +87,25 @@ namespace TerrasHeart.Events
 
         /// <summary>
         /// Raised when the player presses the throw key (T).
-        /// Consumed by: ThrowController (future — BrineglowDescent session).
-        /// No arguments — ThrowController will determine what is thrown based
-        /// on selected inventory item at the time of the event.
+        /// Consumed by: ThrowController on DrMaria.
+        /// No arguments — ThrowController determines what is thrown based on
+        /// selected inventory item at the time of the event.
         /// </summary>
         public static event Action OnThrowInput;
 
         public static void RaiseThrowInput() => OnThrowInput?.Invoke();
+
+        /// <summary>
+        /// Raised by FoodMarker on Start() after it is placed in the world.
+        /// Args: worldPosition (Vector2) — the exact landing point.
+        /// Consumed by: CaveLuminothAI (frighten vs comfort check),
+        ///              TarnCreeperAI (pre-placement tier detection).
+        /// Creature AI scripts check distance from this position to determine
+        /// their reaction — frighten radius or comfort range.
+        /// </summary>
+        public static event Action<Vector2> OnFoodPlaced;
+
+        public static void RaiseFoodPlaced(Vector2 position) => OnFoodPlaced?.Invoke(position);
 
         // ─── Crew (reserved) ─────────────────────────────────────────────────
 
