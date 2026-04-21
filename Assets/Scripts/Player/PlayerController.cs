@@ -16,11 +16,10 @@
 //     during slide; physics owns the descent completely. Exits when contact
 //     normal returns to near-vertical (flat ground). Fires
 //     GameEvents.RaiseSlideStateChanged(bool). Animation hookup is production phase.
-//   - BrineglowDescent: Added condition-based momentum preservation — on slide
-//     exit, velocity assignment is suppressed until the player presses a
-//     direction key OR horizontal velocity drops to near zero. Physics and
-//     floor friction handle deceleration naturally rather than the movement
-//     code zeroing her out on the first frame of restored control.
+//   - BrineglowDescent: Replaced momentum frame skip with smooth deceleration.
+//     After slide exit, horizontal velocity bleeds off toward input-driven target
+//     via Mathf.MoveTowards at _slideDecelerationRate units/s. No input = smooth
+//     coast to zero. Input pressed mid-deceleration = blends into movement speed.
 //
 // ⚠ AFTER REPLACING THIS SCRIPT re-assign in Inspector:
 //   - Ground Check  → drag GroundCheck child transform
@@ -65,10 +64,10 @@ namespace TerrasHeart.Player
         [Tooltip("Exact name of the PhysicsMaterial2D that triggers the slide state.")]
         [SerializeField] private string _slopeMaterialName = "SlipperySlope";
 
-        [Tooltip("Horizontal speed below which momentum preservation ends and " +
-                 "normal movement control resumes. Raise if she regains control " +
-                 "too early; lower if she slides too far past the landing zone.")]
-        [SerializeField] private float _momentumEndThreshold = 0.1f;
+        [Tooltip("Rate at which horizontal velocity bleeds off after slide exit " +
+                 "(units per second). Higher = stops faster. Lower = longer coast. " +
+                 "Also controls how quickly input blends in mid-deceleration.")]
+        [SerializeField] private float _slideDecelerationRate = 8f;
 
         // ─── Private State ────────────────────────────────────────────────────
 
@@ -77,7 +76,7 @@ namespace TerrasHeart.Player
         private Vector2 _moveInput;
         private bool _isSlowWalking;
         private bool _isSliding;
-        private bool _preservingMomentum;
+        private bool _isDecelerating;
 
         // ─────────────────────────────────────────────────────────────────────
         // Unity Lifecycle
@@ -109,26 +108,32 @@ namespace TerrasHeart.Player
             // Physics drives the slide completely — no velocity assignment here.
             if (_isSliding) return;
 
-            // Momentum preservation after slide exit.
-            // Suppresses the movement code overwriting velocity with zero when
-            // no keys are pressed. Ends as soon as the player provides input
-            // or horizontal velocity drops to near zero naturally.
-            if (_preservingMomentum)
-            {
-                bool playerTookOver = _moveInput.x != 0f;
-                bool cameToRest = Mathf.Abs(_rb.linearVelocity.x) < _momentumEndThreshold;
-
-                if (playerTookOver || cameToRest)
-                    _preservingMomentum = false;
-                else
-                    return;
-            }
-
             float speed = _isSlowWalking
                 ? _slowWalkSpeed
                 : _moveSpeed + GetMoveSpeedBonus();
 
-            _rb.linearVelocity = new Vector2(_moveInput.x * speed, _rb.linearVelocity.y);
+            float targetVelocityX = _moveInput.x * speed;
+
+            if (_isDecelerating)
+            {
+                // Bleed horizontal velocity toward input-driven target.
+                // No input → target is 0, smooth coast to stop.
+                // Input pressed → target is ±speed, blends from momentum into movement.
+                float newVelocityX = Mathf.MoveTowards(
+                    _rb.linearVelocity.x,
+                    targetVelocityX,
+                    _slideDecelerationRate * Time.fixedDeltaTime);
+
+                _rb.linearVelocity = new Vector2(newVelocityX, _rb.linearVelocity.y);
+
+                // Exit deceleration once velocity has reached the target.
+                if (newVelocityX == targetVelocityX)
+                    _isDecelerating = false;
+            }
+            else
+            {
+                _rb.linearVelocity = new Vector2(targetVelocityX, _rb.linearVelocity.y);
+            }
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -245,7 +250,7 @@ namespace TerrasHeart.Player
         {
             if (_isSliding) return;
             _isSliding = true;
-            _preservingMomentum = false;
+            _isDecelerating = false;
             GameEvents.RaiseSlideStateChanged(true);
         }
 
@@ -253,7 +258,7 @@ namespace TerrasHeart.Player
         {
             if (!_isSliding) return;
             _isSliding = false;
-            _preservingMomentum = true;
+            _isDecelerating = true;
             GameEvents.RaiseSlideStateChanged(false);
         }
 
