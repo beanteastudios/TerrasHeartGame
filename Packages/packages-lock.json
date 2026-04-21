@@ -1,5 +1,12 @@
 {
   "dependencies": {
+    "com.facticus.utils": {
+      "version": "https://github.com/mnicolas94/UnityUtils.git",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {},
+      "hash": "137eb70ef2f6e341c1a5644ae665620eb575450e"
+    },
     "com.unity.2d.animation": {
       "version": "14.0.3",
       "depth": 0,

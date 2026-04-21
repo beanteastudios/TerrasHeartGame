@@ -5,6 +5,10 @@
 //
 // Phase B Step 4 addition: OnPaletteInput — fired by PlayerController on
 // digit keys 1 and 2. Consumed by GlowMantleAI and GlowMantleHUDController.
+//
+// BrineglowDescent addition: OnSlideStateChanged — fired by PlayerController
+// when Dr. Maria enters or exits the slide state on a slope surface.
+// Consumed by: animation system and camera system (production phase).
 // ─────────────────────────────────────────────────────────────────────────────
 
 using System;
@@ -107,6 +111,16 @@ namespace TerrasHeart.Events
         public static event Action<int> OnPaletteInput;
 
         public static void RaisePaletteInput(int index) => OnPaletteInput?.Invoke(index);
+
+        /// <summary>
+        /// Raised when Dr. Maria enters or exits the slide state on a slope surface.
+        /// Args: isSliding (bool) — true = slide entered, false = slide exited.
+        /// Consumed by: animation system and camera system (production phase).
+        /// </summary>
+        public static event Action<bool> OnSlideStateChanged;
+
+        public static void RaiseSlideStateChanged(bool isSliding) =>
+            OnSlideStateChanged?.Invoke(isSliding);
 
         // ─── Crew (reserved) ─────────────────────────────────────────────────
 

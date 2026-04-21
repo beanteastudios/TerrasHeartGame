@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.facticus.utils": "https://github.com/mnicolas94/UnityUtils.git",
     "com.unity.2d.animation": "14.0.3",
     "com.unity.2d.pixel-perfect": "5.1.1",
     "com.unity.2d.sprite": "1.0.0",

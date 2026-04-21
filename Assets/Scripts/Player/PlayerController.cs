@@ -11,6 +11,16 @@
 //   - Phase B Step 4: Added palette input (1, 2 keys) — fires
 //     GameEvents.RaisePaletteInput(index) for Glow-Mantle call-and-response.
 //     Always fires on key press — GlowMantleAI filters by state.
+//   - BrineglowDescent: Added slide state — triggered on contact with a surface
+//     using the SlipperySlope PhysicsMaterial2D. All player input suppressed
+//     during slide; physics owns the descent completely. Exits when contact
+//     normal returns to near-vertical (flat ground). Fires
+//     GameEvents.RaiseSlideStateChanged(bool). Animation hookup is production phase.
+//   - BrineglowDescent: Added condition-based momentum preservation — on slide
+//     exit, velocity assignment is suppressed until the player presses a
+//     direction key OR horizontal velocity drops to near zero. Physics and
+//     floor friction handle deceleration naturally rather than the movement
+//     code zeroing her out on the first frame of restored control.
 //
 // ⚠ AFTER REPLACING THIS SCRIPT re-assign in Inspector:
 //   - Ground Check  → drag GroundCheck child transform
@@ -46,12 +56,28 @@ namespace TerrasHeart.Player
         [Tooltip("Assign the AdaptationManager component on DrMaria.")]
         [SerializeField] private AdaptationManager _adaptationManager;
 
+        [Header("Slide State")]
+        [Tooltip("Maximum angle (degrees) from Vector2.up that is still considered " +
+                 "flat ground. Contacts above this angle are treated as slope. " +
+                 "Tune against the actual BrineglowDescent slope geometry.")]
+        [SerializeField] private float _flatGroundAngleThreshold = 20f;
+
+        [Tooltip("Exact name of the PhysicsMaterial2D that triggers the slide state.")]
+        [SerializeField] private string _slopeMaterialName = "SlipperySlope";
+
+        [Tooltip("Horizontal speed below which momentum preservation ends and " +
+                 "normal movement control resumes. Raise if she regains control " +
+                 "too early; lower if she slides too far past the landing zone.")]
+        [SerializeField] private float _momentumEndThreshold = 0.1f;
+
         // ─── Private State ────────────────────────────────────────────────────
 
         private Rigidbody2D _rb;
         private bool _isGrounded;
         private Vector2 _moveInput;
         private bool _isSlowWalking;
+        private bool _isSliding;
+        private bool _preservingMomentum;
 
         // ─────────────────────────────────────────────────────────────────────
         // Unity Lifecycle
@@ -64,6 +90,9 @@ namespace TerrasHeart.Player
 
         private void Update()
         {
+            // All input suppressed during slide — physics owns the descent.
+            if (_isSliding) return;
+
             Keyboard kb = Keyboard.current;
             if (kb == null) return;
 
@@ -77,6 +106,24 @@ namespace TerrasHeart.Player
 
         private void FixedUpdate()
         {
+            // Physics drives the slide completely — no velocity assignment here.
+            if (_isSliding) return;
+
+            // Momentum preservation after slide exit.
+            // Suppresses the movement code overwriting velocity with zero when
+            // no keys are pressed. Ends as soon as the player provides input
+            // or horizontal velocity drops to near zero naturally.
+            if (_preservingMomentum)
+            {
+                bool playerTookOver = _moveInput.x != 0f;
+                bool cameToRest = Mathf.Abs(_rb.linearVelocity.x) < _momentumEndThreshold;
+
+                if (playerTookOver || cameToRest)
+                    _preservingMomentum = false;
+                else
+                    return;
+            }
+
             float speed = _isSlowWalking
                 ? _slowWalkSpeed
                 : _moveSpeed + GetMoveSpeedBonus();
@@ -143,6 +190,74 @@ namespace TerrasHeart.Player
         }
 
         // ─────────────────────────────────────────────────────────────────────
+        // Slide State
+        // ─────────────────────────────────────────────────────────────────────
+
+        private void OnCollisionEnter2D(Collision2D collision)
+        {
+            if (_isSliding)
+                TryExitSlide(collision);
+            else
+                TryEnterSlide(collision);
+        }
+
+        private void OnCollisionStay2D(Collision2D collision)
+        {
+            // Handles the case where the slope curves into flat terrain within
+            // a single continuous collider contact — exit would never fire from
+            // OnCollisionEnter2D alone in that geometry.
+            if (!_isSliding) return;
+            TryExitSlide(collision);
+        }
+
+        private void TryEnterSlide(Collision2D collision)
+        {
+            if (collision.collider.sharedMaterial == null) return;
+            if (collision.collider.sharedMaterial.name != _slopeMaterialName) return;
+
+            foreach (ContactPoint2D contact in collision.contacts)
+            {
+                float angle = Vector2.Angle(contact.normal, Vector2.up);
+                if (angle > _flatGroundAngleThreshold)
+                {
+                    EnterSlideState();
+                    return;
+                }
+            }
+        }
+
+        private void TryExitSlide(Collision2D collision)
+        {
+            // Exit check is material-agnostic — the landing surface may or may
+            // not share the SlipperySlope material; only the normal angle matters.
+            foreach (ContactPoint2D contact in collision.contacts)
+            {
+                float angle = Vector2.Angle(contact.normal, Vector2.up);
+                if (angle <= _flatGroundAngleThreshold)
+                {
+                    ExitSlideState();
+                    return;
+                }
+            }
+        }
+
+        private void EnterSlideState()
+        {
+            if (_isSliding) return;
+            _isSliding = true;
+            _preservingMomentum = false;
+            GameEvents.RaiseSlideStateChanged(true);
+        }
+
+        private void ExitSlideState()
+        {
+            if (!_isSliding) return;
+            _isSliding = false;
+            _preservingMomentum = true;
+            GameEvents.RaiseSlideStateChanged(false);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
         // Adaptation Bonus Queries
         // ─────────────────────────────────────────────────────────────────────
 
@@ -151,5 +266,15 @@ namespace TerrasHeart.Player
 
         private float GetMoveSpeedBonus() =>
             _adaptationManager != null ? _adaptationManager.GetMoveSpeedBonus() : 0f;
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Public Accessors
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>Whether Dr. Maria is currently in the slide state.</summary>
+        public bool IsSliding => _isSliding;
+
+        /// <summary>Whether Dr. Maria is currently on the ground.</summary>
+        public bool IsGrounded => _isGrounded;
     }
 }
