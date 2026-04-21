@@ -10,11 +10,11 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1447931a86538b746882a4560cb09975, type: 3}
-  m_Name: TarnCreeperDataExceptional
+  m_Name: GillFinchData_BD
   m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Scanner.CreatureDataSO
-  _speciesName: Tarn Creeper
-  _biomeID: TestLevel
+  _speciesName: Gill_Finch
+  _biomeID: BrineglowDescent
   _fieldNote: 
-  _aliveTier: 3
+  _aliveTier: 2
   _deadTier: 0
   _scanDurationMultiplier: 1

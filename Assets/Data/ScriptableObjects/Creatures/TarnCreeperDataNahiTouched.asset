@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: TarnCreeperDataNahiTouched
   m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Scanner.CreatureDataSO
   _speciesName: Tarn Creeper
-  _biomeID: TestLevel
+  _biomeID: BrineglowDescent
   _fieldNote: 
   _aliveTier: 4
   _deadTier: 0

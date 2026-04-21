@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: GlowMantleDataReceptive
   m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Scanner.CreatureDataSO
   _speciesName: Glow-Mantle
-  _biomeID: TestLevel
+  _biomeID: BrineglowDescent
   _fieldNote: 
   _aliveTier: 3
   _deadTier: 0

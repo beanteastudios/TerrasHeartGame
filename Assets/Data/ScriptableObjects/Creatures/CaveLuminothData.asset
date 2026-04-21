@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: CaveLuminothData
   m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Scanner.CreatureDataSO
   _speciesName: Cave Luminoth
-  _biomeID: TestLevel
+  _biomeID: BrineglowDescent
   _fieldNote: 
   _aliveTier: 2
   _deadTier: 0

@@ -9,11 +9,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8745c9f73415a774cb135cfbb03552cc, type: 3}
-  m_Name: BrineglowDescentHealth
-  m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.WorldState.BiomeHealthConfigSO
+  m_Script: {fileID: 11500000, guid: 1447931a86538b746882a4560cb09975, type: 3}
+  m_Name: TarnCreeperData_BD
+  m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Scanner.CreatureDataSO
+  _speciesName: Tarn Creeper
   _biomeID: BrineglowDescent
-  _startingHealth: 65
-  _killPenalty: 10
-  _scanRestoration: 3
-  _corruptedRestoration: 15
+  _fieldNote: 
+  _aliveTier: 2
+  _deadTier: 0
+  _scanDurationMultiplier: 1
