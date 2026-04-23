@@ -4,6 +4,15 @@
 // Terra's Heart — Dr. Maria's movement controller.
 //
 // Updated:
+//   - Wall-stick fix: CheckGround() now uses a two-pass approach.
+//     Pass 1: OverlapCircle confirms something on the Ground layer is in range.
+//     Pass 2: rb.GetContacts() verifies at least one contact has a normal within
+//     _groundContactAngleMax degrees of Vector2.up. Wall contacts (~90°) are
+//     rejected; floor and slope contacts (0°–60°) are accepted. Prevents wall
+//     touch from setting _isGrounded = true and blocking jump input.
+//     Physics Material 2D (Friction 0, Bounciness 0) must also be applied to
+//     Tilemap_Walls and Tilemap_Ceiling in the scene to eliminate the friction
+//     sticking — the code fix alone is not sufficient.
 //   - Added slow walk (Left Shift held) — reduces move speed below creature
 //     detection threshold. Tune _slowWalkSpeed to stay below
 //     CaveLuminothAI._slowSpeedThreshold (currently 1.5).
@@ -51,6 +60,12 @@ namespace TerrasHeart.Player
         [SerializeField] private float _groundCheckRadius = 0.1f;
         [SerializeField] private LayerMask _groundLayer;
 
+        [Tooltip("Maximum angle (degrees) from Vector2.up for a contact normal to " +
+                 "count as ground. Wall contacts are ~90° and will be rejected. " +
+                 "Floor contacts are ~0° and will be accepted. Default 60° accepts " +
+                 "floors and moderate slopes while filtering all wall contacts.")]
+        [SerializeField] private float _groundContactAngleMax = 60f;
+
         [Header("Adaptations")]
         [Tooltip("Assign the AdaptationManager component on DrMaria.")]
         [SerializeField] private AdaptationManager _adaptationManager;
@@ -77,6 +92,9 @@ namespace TerrasHeart.Player
         private bool _isSlowWalking;
         private bool _isSliding;
         private bool _isDecelerating;
+
+        // Reusable contact buffer — avoids per-frame allocation in CheckGround().
+        private readonly ContactPoint2D[] _contactBuffer = new ContactPoint2D[16];
 
         // ─────────────────────────────────────────────────────────────────────
         // Unity Lifecycle
@@ -180,8 +198,32 @@ namespace TerrasHeart.Player
 
         private void CheckGround()
         {
-            _isGrounded = Physics2D.OverlapCircle(
+            // Pass 1 — broad spatial check: is anything on the Ground layer nearby?
+            bool overlap = Physics2D.OverlapCircle(
                 _groundCheck.position, _groundCheckRadius, _groundLayer);
+
+            if (!overlap)
+            {
+                _isGrounded = false;
+                return;
+            }
+
+            // Pass 2 — normal filter: is any active contact coming from below?
+            // Wall contacts have a normal ~90° from Vector2.up and will be rejected.
+            // Floor and slope contacts are within _groundContactAngleMax and accepted.
+            // This prevents pressing against a wall from setting _isGrounded = true.
+            int count = _rb.GetContacts(_contactBuffer);
+            for (int i = 0; i < count; i++)
+            {
+                float angle = Vector2.Angle(_contactBuffer[i].normal, Vector2.up);
+                if (angle < _groundContactAngleMax)
+                {
+                    _isGrounded = true;
+                    return;
+                }
+            }
+
+            _isGrounded = false;
         }
 
         // ─────────────────────────────────────────────────────────────────────
@@ -281,5 +323,16 @@ namespace TerrasHeart.Player
 
         /// <summary>Whether Dr. Maria is currently on the ground.</summary>
         public bool IsGrounded => _isGrounded;
+
+        // ─────────────────────────────────────────────────────────────────────
+        // Debug
+        // ─────────────────────────────────────────────────────────────────────
+
+        private void OnDrawGizmosSelected()
+        {
+            if (_groundCheck == null) return;
+            Gizmos.color = _isGrounded ? Color.green : Color.red;
+            Gizmos.DrawWireSphere(_groundCheck.position, _groundCheckRadius);
+        }
     }
 }
