@@ -125,7 +125,7 @@ Material:
     - _Glossiness: 0
     - _GlossyReflections: 0
     - _GlowIntensity: 2
-    - _MaxWaterDepth: 3
+    - _MaxWaterDepth: 2
     - _Metallic: 0
     - _NormalStrength: 0.8
     - _OcclusionStrength: 1

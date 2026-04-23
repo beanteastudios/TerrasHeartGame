@@ -98,6 +98,18 @@ namespace TerrasHeart.Events
         /// </summary>
         public static event Action<Vector2> OnFoodPlaced;
 
+        // ─── Water ───────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Raised when an object enters the water trigger and triggers a splash.
+        /// Args: splashCenter (Vector2 world pos), radius (float), force (float).
+        /// Future consumers: WaterSoundManager, BioluminescentFlashController, ScanTrigger.
+        /// </summary>
+        public static event Action<Vector2, float, float> OnWaterSplash;
+
+        public static void RaiseWaterSplash(Vector2 center, float radius, float force) =>
+            OnWaterSplash?.Invoke(center, radius, force);
+
         public static void RaiseFoodPlaced(Vector2 position) => OnFoodPlaced?.Invoke(position);
 
         /// <summary>
