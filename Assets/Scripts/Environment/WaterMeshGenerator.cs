@@ -57,4 +57,29 @@ public class WaterMeshGenerator : MonoBehaviour
         GetComponent<MeshFilter>().sharedMesh = mesh;
         Debug.Log($"[WaterMeshGenerator] Generated {vertsX * vertsY} vertices.");
     }
+
+#if UNITY_EDITOR
+    [ContextMenu("Save Mesh As Asset")]
+    private void SaveMeshAsAsset()
+    {
+        MeshFilter mf = GetComponent<MeshFilter>();
+        if (mf == null || mf.sharedMesh == null)
+        {
+            Debug.LogWarning("[WaterMeshGenerator] No mesh to save — generate mesh first.");
+            return;
+        }
+
+        string folder = "Assets/Meshes/Water";
+        if (!UnityEditor.AssetDatabase.IsValidFolder("Assets/Meshes"))
+            UnityEditor.AssetDatabase.CreateFolder("Assets", "Meshes");
+        if (!UnityEditor.AssetDatabase.IsValidFolder(folder))
+            UnityEditor.AssetDatabase.CreateFolder("Assets/Meshes", "Water");
+
+        string path = $"{folder}/WaterSurfaceMesh_{gameObject.name}.asset";
+        UnityEditor.AssetDatabase.CreateAsset(mf.sharedMesh, path);
+        UnityEditor.AssetDatabase.SaveAssets();
+
+        Debug.Log($"[WaterMeshGenerator] Mesh saved to {path}");
+    }
+#endif
 }

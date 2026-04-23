@@ -1,0 +1,296 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1921395750352141078
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 817407897053561083}
+  - component: {fileID: 558950027738424947}
+  - component: {fileID: 8158688747393177396}
+  - component: {fileID: 7223828722168310710}
+  - component: {fileID: 4429588858672483957}
+  - component: {fileID: 8293918475991198119}
+  - component: {fileID: 6409165745552065284}
+  - component: {fileID: 7947011698091734391}
+  - component: {fileID: 2158783105993280213}
+  - component: {fileID: 3935262700234460474}
+  m_Layer: 0
+  m_Name: WaterSurface_Pool01
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &817407897053561083
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921395750352141078}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 152.15, y: -61.54, z: 0}
+  m_LocalScale: {x: 0.85024196, y: 2.110898, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!33 &558950027738424947
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921395750352141078}
+  m_Mesh: {fileID: 4300000, guid: 95d4731146d8257419d0d96852e61d42, type: 2}
+--- !u!23 &8158688747393177396
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921395750352141078}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 77771483060a3a342a2b5d5cb514c804, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &7223828722168310710
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921395750352141078}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbac84b9c8648394db367489909f0a85, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::WaterMeshGenerator
+  _width: 10
+  _height: 3
+  _subdivisionsX: 40
+  _subdivisionsY: 8
+--- !u!114 &4429588858672483957
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921395750352141078}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c2bdee3404758bf428969d2706550c5a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.World.BioCaveWaterController
+  _biomeID: BrineglowDescent
+  _shallowColorHealthy: {r: 0, g: 1, b: 0.82, a: 1}
+  _deepColorHealthy: {r: 0, g: 0.23, b: 0.23, a: 1}
+  _rimColorHealthy: {r: 1, g: 0.7, b: 0.28, a: 1}
+  _glowIntensityHealthy: 2.5
+  _rimIntensityHealthy: 3
+  _shallowColorCritical: {r: 0.78, g: 0.53, b: 0.04, a: 1}
+  _deepColorCritical: {r: 0.1, g: 0.07, b: 0.01, a: 1}
+  _rimColorCritical: {r: 0.78, g: 0.53, b: 0.04, a: 1}
+  _glowIntensityCritical: 0.3
+  _rimIntensityCritical: 0.5
+  _lerpSpeed: 1.5
+--- !u!68 &8293918475991198119
+EdgeCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921395750352141078}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 1
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: 0, y: 0}
+  m_EdgeRadius: 0
+  m_Points:
+  - {x: -5, y: 1.5}
+  - {x: 5, y: 1.5}
+  m_AdjacentStartPoint: {x: 0, y: 0}
+  m_AdjacentEndPoint: {x: 0, y: 0}
+  m_UseAdjacentStartPoint: 0
+  m_UseAdjacentEndPoint: 0
+--- !u!114 &6409165745552065284
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921395750352141078}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 64065c3de25604c4884f745dcb2bfe04, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Environment.WaterSpringController
+  _springStiffness: 0.08
+  _damping: 0.12
+  _propagationIterations: 8
+  _spread: 0.2
+  _speedMultiplier: 8
+  _maxSplashVelocity: 0.15
+  _biomeID: BrineglowDescent
+  _stiffnessMultiplierHealthy: 1
+  _stiffnessMultiplierCritical: 0.15
+  _dampingMultiplierHealthy: 1
+  _dampingMultiplierCritical: 4
+  _forceMultiplierHealthy: 1
+  _forceMultiplierCritical: 0.1
+  _edgeCollider: {fileID: 8293918475991198119}
+  _volumeCollider: {fileID: 2158783105993280213}
+--- !u!114 &7947011698091734391
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921395750352141078}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0da2eb2c297d09545a1910e4d7db280f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Environment.WaterTriggerHandler
+  _splashLayerMask:
+    serializedVersion: 2
+    m_Bits: 128
+  _forceMultiplier: 0.05
+  _splashRadiusMultiplier: 4
+  _minSplashVelocity: 0.5
+  _splashParticles: {fileID: 0}
+  _particlesOnEntryOnly: 1
+--- !u!61 &2158783105993280213
+BoxCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921395750352141078}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_ForceSendLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ForceReceiveLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_ContactCaptureLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_CallbackLayers:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  m_IsTrigger: 1
+  m_UsedByEffector: 0
+  m_CompositeOperation: 0
+  m_CompositeOrder: 0
+  m_Offset: {x: 0, y: 0}
+  m_SpriteTilingProperty:
+    border: {x: 0, y: 0, z: 0, w: 0}
+    pivot: {x: 0, y: 0}
+    oldSize: {x: 0, y: 0}
+    newSize: {x: 0, y: 0}
+    adaptiveTilingThreshold: 0
+    drawMode: 0
+    adaptiveTiling: 0
+  m_AutoTiling: 0
+  m_Size: {x: 10, y: 2.6999998}
+  m_EdgeRadius: 0
+--- !u!114 &3935262700234460474
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1921395750352141078}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ebb2c99051cf0f4cbf9dc8ef12c3dda, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Environment.WaterSubmersionController
+  _affectedLayers:
+    serializedVersion: 2
+    m_Bits: 128
+  _playerRigidbody: {fileID: 0}
+  _waterDampingHealthy: 8
+  _waterDampingCritical: 2
+  _submergedGravityScale: 0.4
+  _waterSurfaceLocalY: 0
+  _biomeID: BrineglowDescent

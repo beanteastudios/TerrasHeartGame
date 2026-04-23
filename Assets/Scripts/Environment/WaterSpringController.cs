@@ -46,10 +46,10 @@ namespace TerrasHeart.Environment
         [SerializeField] private int _propagationIterations = 8;
 
         [Tooltip("How much energy is transferred to neighbouring springs per iteration.")]
-        [SerializeField] private float _spread = 0.12f;
+        [SerializeField] private float _spread = 0.20f;
 
         [Tooltip("Speed multiplier applied to all spring velocity calculations.")]
-        [SerializeField] private float _speedMultiplier = 3.0f;
+        [SerializeField] private float _speedMultiplier = 8.0f;
 
         [Header("Splash Force")]
         [Tooltip("Max velocity clamp — prevents fast-moving objects exploding the springs.")]
@@ -236,22 +236,15 @@ namespace TerrasHeart.Environment
             Vector3 leftLocal = _vertices[_topVertexIndices[0]];
             Vector3 rightLocal = _vertices[_topVertexIndices[_topVertexIndices.Length - 1]];
 
-            Vector2 offset = _edgeCollider.offset;
             var points = new Vector2[]
             {
-                new Vector2(leftLocal.x  - offset.x, leftLocal.y - offset.y),
-                new Vector2(rightLocal.x - offset.x, rightLocal.y - offset.y)
+                new Vector2(leftLocal.x,  leftLocal.y),
+                new Vector2(rightLocal.x, rightLocal.y)
             };
 
             _edgeCollider.SetPoints(new List<Vector2>(points));
         }
 
-        /// <summary>
-        /// Auto-sizes the BoxCollider2D volume trigger to match the full mesh bounds.
-        /// The volume collider is used for submersion detection (player slowdown).
-        /// It is sized from the mesh AABB — width and height of the water body.
-        /// isTrigger must be set to true manually in the Inspector or it is forced here.
-        /// </summary>
         public void AutoSizeVolumeCollider()
         {
             if (_volumeCollider == null)
@@ -265,15 +258,9 @@ namespace TerrasHeart.Environment
 
             _volumeCollider.isTrigger = true;
 
-            // Get mesh bounds in local space
             Bounds bounds = _mesh.bounds;
-
-            // Shrink height slightly so the top edge sits just below the water surface.
-            // This ensures OnTriggerExit2D fires correctly when the player jumps out.
             _volumeCollider.size = new Vector2(bounds.size.x, bounds.size.y * 0.9f);
             _volumeCollider.offset = new Vector2(bounds.center.x, bounds.center.y);
-
-            Debug.Log($"[WaterSpringController] Volume collider sized to {_volumeCollider.size} at offset {_volumeCollider.offset}");
         }
 
         // ------------------------------------------------------------------
@@ -332,21 +319,24 @@ namespace TerrasHeart.Environment
             _mesh.vertices = _vertices;
         }
 
+        /// <summary>
+        /// Updates EdgeCollider2D points every FixedUpdate to follow animated spring positions.
+        /// Uses the same InverseTransformPoint conversion as UpdateMeshVertices — proven correct.
+        /// localX is stored directly from mesh vertices at init — no X conversion needed.
+        /// </summary>
         private void UpdateEdgeCollider()
         {
             if (_edgeCollider == null) return;
 
             var points = new List<Vector2>(_waterPoints.Count);
-            Vector2 offset = _edgeCollider.offset;
 
             for (int i = 0; i < _waterPoints.Count; i++)
             {
-                float localY = transform.InverseTransformPoint(
-                    new Vector3(_waterPoints[i].worldX, _waterPoints[i].position, 0f)).y;
+                float worldY = _waterPoints[i].position;
+                // Same conversion as UpdateMeshVertices — this is the proven correct call
+                float localY = transform.InverseTransformPoint(new Vector3(0f, worldY, 0f)).y;
 
-                points.Add(new Vector2(
-                    _waterPoints[i].localX - offset.x,
-                    localY - offset.y));
+                points.Add(new Vector2(_waterPoints[i].localX, localY));
             }
 
             _edgeCollider.SetPoints(points);
@@ -365,7 +355,6 @@ namespace TerrasHeart.Environment
             }
 
             float scaledForce = Mathf.Clamp(force * _activeForceMultiplier, -_maxSplashVelocity, _maxSplashVelocity);
-            int hitsCount = 0;
 
             for (int i = 1; i < _waterPoints.Count - 1; i++)
             {
@@ -375,7 +364,6 @@ namespace TerrasHeart.Environment
                 {
                     float attenuation = 1f - (distance / radius);
                     _waterPoints[i].velocity += scaledForce * attenuation;
-                    hitsCount++;
                 }
             }
         }
