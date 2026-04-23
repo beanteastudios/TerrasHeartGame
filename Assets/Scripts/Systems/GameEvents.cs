@@ -107,6 +107,16 @@ namespace TerrasHeart.Events
         /// </summary>
         public static event Action<Vector2, float, float> OnWaterSplash;
 
+        // <summary>
+        /// Raised when DrMaria enters or exits the water volume trigger.
+        /// Args: isSubmerged (bool) — true on entry, false on exit.
+        /// Future consumers: AnimationController (swim state), AudioManager (underwater ambience).
+        /// </summary>
+        public static event Action<bool> OnPlayerSubmerged;
+
+        public static void RaisePlayerSubmerged(bool isSubmerged) =>
+            OnPlayerSubmerged?.Invoke(isSubmerged);
+
         public static void RaiseWaterSplash(Vector2 center, float radius, float force) =>
             OnWaterSplash?.Invoke(center, radius, force);
 
