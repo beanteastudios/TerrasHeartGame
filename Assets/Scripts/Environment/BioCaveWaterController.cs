@@ -137,21 +137,27 @@ namespace TerrasHeart.World
 
         private void ApplyProperties(float t)
         {
+            // Cache renderer if not already assigned (needed for Edit mode context menu calls)
+            if (_renderer == null)
+                _renderer = GetComponent<Renderer>();
+            if (_mpb == null)
+                _mpb = new MaterialPropertyBlock();
+
             // HDR colours: multiply base colour by intensity scalar for HDR output
-            _currentShallow = Color.Lerp(_shallowColorCritical,  _shallowColorHealthy,  t)
+            _currentShallow = Color.Lerp(_shallowColorCritical, _shallowColorHealthy, t)
                               * Mathf.Lerp(_glowIntensityCritical, _glowIntensityHealthy, t);
 
-            _currentDeep    = Color.Lerp(_deepColorCritical,    _deepColorHealthy,    t);
+            _currentDeep = Color.Lerp(_deepColorCritical, _deepColorHealthy, t);
 
-            _currentRim     = Color.Lerp(_rimColorCritical,     _rimColorHealthy,     t)
-                              * Mathf.Lerp(_rimIntensityCritical,  _rimIntensityHealthy,  t);
+            _currentRim = Color.Lerp(_rimColorCritical, _rimColorHealthy, t)
+                              * Mathf.Lerp(_rimIntensityCritical, _rimIntensityHealthy, t);
 
-            _currentGlow    = Mathf.Lerp(_glowIntensityCritical, _glowIntensityHealthy, t);
+            _currentGlow = Mathf.Lerp(_glowIntensityCritical, _glowIntensityHealthy, t);
 
             _renderer.GetPropertyBlock(_mpb);
-            _mpb.SetColor(_ShallowColorID,  _currentShallow);
-            _mpb.SetColor(_DeepColorID,     _currentDeep);
-            _mpb.SetColor(_RimColorID,      _currentRim);
+            _mpb.SetColor(_ShallowColorID, _currentShallow);
+            _mpb.SetColor(_DeepColorID, _currentDeep);
+            _mpb.SetColor(_RimColorID, _currentRim);
             _mpb.SetFloat(_GlowIntensityID, _currentGlow);
             _renderer.SetPropertyBlock(_mpb);
         }
@@ -160,7 +166,7 @@ namespace TerrasHeart.World
         // Editor helper — lets you preview the colour states in the Inspector
         // without entering Play mode (call from a custom editor or context menu).
         // ------------------------------------------------------------------
-        #if UNITY_EDITOR
+#if UNITY_EDITOR
         [ContextMenu("Preview Healthy State")]
         private void PreviewHealthy()
         {
@@ -182,6 +188,6 @@ namespace TerrasHeart.World
             _currentHealth = 50f;
             ApplyProperties(NormaliseHealth(50f));
         }
-        #endif
+#endif
     }
 }
