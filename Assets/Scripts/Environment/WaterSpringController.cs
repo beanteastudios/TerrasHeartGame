@@ -319,11 +319,6 @@ namespace TerrasHeart.Environment
             _mesh.vertices = _vertices;
         }
 
-        /// <summary>
-        /// Updates EdgeCollider2D points every FixedUpdate to follow animated spring positions.
-        /// Uses the same InverseTransformPoint conversion as UpdateMeshVertices — proven correct.
-        /// localX is stored directly from mesh vertices at init — no X conversion needed.
-        /// </summary>
         private void UpdateEdgeCollider()
         {
             if (_edgeCollider == null) return;
@@ -333,9 +328,7 @@ namespace TerrasHeart.Environment
             for (int i = 0; i < _waterPoints.Count; i++)
             {
                 float worldY = _waterPoints[i].position;
-                // Same conversion as UpdateMeshVertices — this is the proven correct call
                 float localY = transform.InverseTransformPoint(new Vector3(0f, worldY, 0f)).y;
-
                 points.Add(new Vector2(_waterPoints[i].localX, localY));
             }
 
@@ -405,6 +398,34 @@ namespace TerrasHeart.Environment
             AutoSizeEdgeCollider();
             AutoSizeVolumeCollider();
             Debug.Log("[WaterSpringController] Reinitialised from editor.");
+        }
+
+        [ContextMenu("Flatten Mesh")]
+        private void FlattenMesh()
+        {
+            _mesh     = GetComponent<MeshFilter>().sharedMesh;
+            _vertices = _mesh.vertices;
+
+            if (_topVertexIndices == null || _topVertexIndices.Length == 0)
+            {
+                Debug.LogWarning("[WaterSpringController] No top vertices — run Reinitialise Water Points first.");
+                return;
+            }
+
+            for (int i = 0; i < _topVertexIndices.Length; i++)
+            {
+                int   meshIdx = _topVertexIndices[i];
+                float localY  = transform.InverseTransformPoint(
+                    new Vector3(0f, _waterPoints[i].targetHeight, 0f)).y;
+
+                _vertices[meshIdx] = new Vector3(
+                    _vertices[meshIdx].x,
+                    localY,
+                    _vertices[meshIdx].z);
+            }
+
+            _mesh.vertices = _vertices;
+            Debug.Log("[WaterSpringController] Mesh flattened.");
         }
 #endif
     }
