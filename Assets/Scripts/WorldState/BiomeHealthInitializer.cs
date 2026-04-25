@@ -18,6 +18,8 @@
 
 using UnityEngine;
 using TerrasHeart.WorldState;
+using TerrasHeart.Events;
+using TerrasHeart.World;
 
 namespace TerrasHeart.WorldState
 {

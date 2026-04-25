@@ -1,338 +1,294 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// PlayerController.cs
-// Path: Assets/Scripts/Player/PlayerController.cs
-// Terra's Heart — Dr. Maria's movement controller.
-//
-// Updated:
-//   - Wall-stick fix: CheckGround() now uses a two-pass approach.
-//     Pass 1: OverlapCircle confirms something on the Ground layer is in range.
-//     Pass 2: rb.GetContacts() verifies at least one contact has a normal within
-//     _groundContactAngleMax degrees of Vector2.up. Wall contacts (~90°) are
-//     rejected; floor and slope contacts (0°–60°) are accepted. Prevents wall
-//     touch from setting _isGrounded = true and blocking jump input.
-//     Physics Material 2D (Friction 0, Bounciness 0) must also be applied to
-//     Tilemap_Walls and Tilemap_Ceiling in the scene to eliminate the friction
-//     sticking — the code fix alone is not sufficient.
-//   - Added slow walk (Left Shift held) — reduces move speed below creature
-//     detection threshold. Tune _slowWalkSpeed to stay below
-//     CaveLuminothAI._slowSpeedThreshold (currently 1.5).
-//   - Added throw input (T key) — fires GameEvents.RaiseThrowInput().
-//   - Phase B Step 4: Added palette input (1, 2 keys) — fires
-//     GameEvents.RaisePaletteInput(index) for Glow-Mantle call-and-response.
-//     Always fires on key press — GlowMantleAI filters by state.
-//   - BrineglowDescent: Added slide state — triggered on contact with a surface
-//     using the SlipperySlope PhysicsMaterial2D. All player input suppressed
-//     during slide; physics owns the descent completely. Exits when contact
-//     normal returns to near-vertical (flat ground). Fires
-//     GameEvents.RaiseSlideStateChanged(bool). Animation hookup is production phase.
-//   - BrineglowDescent: Replaced momentum frame skip with smooth deceleration.
-//     After slide exit, horizontal velocity bleeds off toward input-driven target
-//     via Mathf.MoveTowards at _slideDecelerationRate units/s. No input = smooth
-//     coast to zero. Input pressed mid-deceleration = blends into movement speed.
-//
-// ⚠ AFTER REPLACING THIS SCRIPT re-assign in Inspector:
-//   - Ground Check  → drag GroundCheck child transform
-//   - Ground Layer  → select Ground layer
-//   - Adaptation Manager → drag AdaptationManager component on DrMaria
-// ─────────────────────────────────────────────────────────────────────────────
-
 using UnityEngine;
 using UnityEngine.InputSystem;
-using TerrasHeart.Adaptations;
 using TerrasHeart.Events;
 
 namespace TerrasHeart.Player
 {
+    /// <summary>
+    /// Controls Dr. Maria's movement, jump, slide, and swim states.
+    /// Uses New Input System (Keyboard.current polling) exclusively.
+    /// Cross-system communication via GameEvents bus only.
+    ///
+    /// State priority (highest to lowest): Swim > Slide > Land
+    /// Swim entry/exit driven by WaterVolume → GameEvents.OnWaterEntered / OnWaterExited.
+    /// Slide entry driven by contact normal + SlipperySlope physics material detection.
+    /// </summary>
     [RequireComponent(typeof(Rigidbody2D))]
     public class PlayerController : MonoBehaviour
     {
+        // ─────────────────────────────────────────────────────────────
+        // SERIALIZED FIELDS
+        // ─────────────────────────────────────────────────────────────
+
         [Header("Movement")]
+        [Tooltip("Horizontal move speed on land (units/s).")]
         [SerializeField] private float _moveSpeed = 5f;
 
-        [Tooltip("Speed when Left Shift is held. Must stay below CaveLuminothAI " +
-                 "Slow Speed Threshold (default 1.5) to avoid detection.")]
-        [SerializeField] private float _slowWalkSpeed = 1.2f;
-
+        [Tooltip("Vertical launch force applied on jump.")]
         [SerializeField] private float _jumpForce = 10f;
 
-        [Header("Ground Check")]
-        [SerializeField] private Transform _groundCheck;
-        [SerializeField] private float _groundCheckRadius = 0.1f;
-        [SerializeField] private LayerMask _groundLayer;
+        [Header("Swim")]
+        [SerializeField] private SwimConfigSO _swimConfig;
 
-        [Tooltip("Maximum angle (degrees) from Vector2.up for a contact normal to " +
-                 "count as ground. Wall contacts are ~90° and will be rejected. " +
-                 "Floor contacts are ~0° and will be accepted. Default 60° accepts " +
-                 "floors and moderate slopes while filtering all wall contacts.")]
-        [SerializeField] private float _groundContactAngleMax = 60f;
-
-        [Header("Adaptations")]
-        [Tooltip("Assign the AdaptationManager component on DrMaria.")]
-        [SerializeField] private AdaptationManager _adaptationManager;
-
-        [Header("Slide State")]
-        [Tooltip("Maximum angle (degrees) from Vector2.up that is still considered " +
-                 "flat ground. Contacts above this angle are treated as slope. " +
-                 "Tune against the actual BrineglowDescent slope geometry.")]
-        [SerializeField] private float _flatGroundAngleThreshold = 20f;
-
-        [Tooltip("Exact name of the PhysicsMaterial2D that triggers the slide state.")]
-        [SerializeField] private string _slopeMaterialName = "SlipperySlope";
-
-        [Tooltip("Rate at which horizontal velocity bleeds off after slide exit " +
-                 "(units per second). Higher = stops faster. Lower = longer coast. " +
-                 "Also controls how quickly input blends in mid-deceleration.")]
+        [Header("Slide")]
+        [Tooltip("Deceleration rate applied once the slide reaches flat ground (Mathf.MoveTowards).")]
         [SerializeField] private float _slideDecelerationRate = 8f;
 
-        // ─── Private State ────────────────────────────────────────────────────
+        [Header("Ground Detection")]
+        [Tooltip("Ground physics layer. Set to the 'Ground' layer in the Inspector.")]
+        [SerializeField] private LayerMask _groundLayer;
+
+        // ─────────────────────────────────────────────────────────────
+        // PRIVATE STATE
+        // ─────────────────────────────────────────────────────────────
 
         private Rigidbody2D _rb;
+
+        // Grounded
         private bool _isGrounded;
-        private Vector2 _moveInput;
-        private bool _isSlowWalking;
+
+        // Slide
         private bool _isSliding;
-        private bool _isDecelerating;
+        private bool _isOnSlipperySurface; // set by OnCollisionStay2D each physics step
 
-        // Reusable contact buffer — avoids per-frame allocation in CheckGround().
-        private readonly ContactPoint2D[] _contactBuffer = new ContactPoint2D[16];
+        // Swim
+        private bool _isSwimming;
+        private float _waterSurfaceY;
+        private float _originalGravityScale;
 
-        // ─────────────────────────────────────────────────────────────────────
-        // Unity Lifecycle
-        // ─────────────────────────────────────────────────────────────────────
+        // Jump buffering (captured in Update, consumed in FixedUpdate)
+        private bool _jumpRequested;
+
+        // ─────────────────────────────────────────────────────────────
+        // PUBLIC ACCESSORS
+        // ─────────────────────────────────────────────────────────────
+
+        /// <summary>Whether Dr. Maria is currently touching the ground layer.</summary>
+        public bool IsGrounded => _isGrounded;
+
+        /// <summary>Whether Dr. Maria is currently in swim state.</summary>
+        public bool IsSwimming => _isSwimming;
+
+        /// <summary>Whether Dr. Maria is currently in slide state.</summary>
+        public bool IsSliding => _isSliding;
+
+        // ─────────────────────────────────────────────────────────────
+        // LIFECYCLE
+        // ─────────────────────────────────────────────────────────────
 
         private void Awake()
         {
             _rb = GetComponent<Rigidbody2D>();
+            _originalGravityScale = _rb.gravityScale;
         }
+
+        private void OnEnable()
+        {
+            GameEvents.OnWaterEntered += HandleWaterEntered;
+            GameEvents.OnWaterExited += HandleWaterExited;
+        }
+
+        private void OnDisable()
+        {
+            GameEvents.OnWaterEntered -= HandleWaterEntered;
+            GameEvents.OnWaterExited -= HandleWaterExited;
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // UPDATE — input capture only
+        // ─────────────────────────────────────────────────────────────
 
         private void Update()
         {
-            // All input suppressed during slide — physics owns the descent.
-            if (_isSliding) return;
+            var keyboard = Keyboard.current;
+            if (keyboard == null) return;
 
-            Keyboard kb = Keyboard.current;
-            if (kb == null) return;
+            // Jump buffering — captured here, consumed in FixedUpdate
+            if (keyboard.spaceKey.wasPressedThisFrame)
+                _jumpRequested = true;
 
-            HandleMovementInput(kb);
-            CheckGround();
-            HandleJumpInput(kb);
-            HandleThrowInput(kb);
-            HandlePaletteInput(kb);
-            FlipSprite();
+            // Palette input — raise immediately on press
+            if (keyboard.digit1Key.wasPressedThisFrame) GameEvents.RaisePaletteInput(0); // Cyan
+            if (keyboard.digit2Key.wasPressedThisFrame) GameEvents.RaisePaletteInput(1); // Amber
+
+            // Throw input — raise immediately, ThrowController consumes
+            if (keyboard.tKey.wasPressedThisFrame) GameEvents.RaiseThrowInput();
         }
+
+        // ─────────────────────────────────────────────────────────────
+        // FIXED UPDATE — movement execution
+        // ─────────────────────────────────────────────────────────────
 
         private void FixedUpdate()
         {
-            // Physics drives the slide completely — no velocity assignment here.
-            if (_isSliding) return;
+            _isGrounded = _rb.IsTouchingLayers(_groundLayer);
 
-            float speed = _isSlowWalking
-                ? _slowWalkSpeed
-                : _moveSpeed + GetMoveSpeedBonus();
-
-            float targetVelocityX = _moveInput.x * speed;
-
-            if (_isDecelerating)
+            if (_isSwimming)
             {
-                // Bleed horizontal velocity toward input-driven target.
-                // No input → target is 0, smooth coast to stop.
-                // Input pressed → target is ±speed, blends from momentum into movement.
-                float newVelocityX = Mathf.MoveTowards(
-                    _rb.linearVelocity.x,
-                    targetVelocityX,
-                    _slideDecelerationRate * Time.fixedDeltaTime);
-
-                _rb.linearVelocity = new Vector2(newVelocityX, _rb.linearVelocity.y);
-
-                // Exit deceleration once velocity has reached the target.
-                if (newVelocityX == targetVelocityX)
-                    _isDecelerating = false;
+                HandleSwimMovement();
+                CheckSwimGroundExit();
+            }
+            else if (_isSliding)
+            {
+                HandleSlideMovement();
             }
             else
             {
-                _rb.linearVelocity = new Vector2(targetVelocityX, _rb.linearVelocity.y);
+                HandleLandMovement();
             }
+
+            _jumpRequested = false;
+            _isOnSlipperySurface = false;
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // Input
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────
+        // LAND MOVEMENT
+        // ─────────────────────────────────────────────────────────────
 
-        private void HandleMovementInput(Keyboard kb)
+        private void HandleLandMovement()
         {
+            var keyboard = Keyboard.current;
+            if (keyboard == null) return;
+
             float horizontal = 0f;
-            if (kb.leftArrowKey.isPressed || kb.aKey.isPressed) horizontal = -1f;
-            if (kb.rightArrowKey.isPressed || kb.dKey.isPressed) horizontal = 1f;
-            _moveInput = new Vector2(horizontal, 0f);
+            if (keyboard.aKey.isPressed) horizontal = -1f;
+            if (keyboard.dKey.isPressed) horizontal = 1f;
 
-            _isSlowWalking = kb.leftShiftKey.isPressed;
-        }
+            _rb.linearVelocity = new Vector2(horizontal * _moveSpeed, _rb.linearVelocity.y);
 
-        private void HandleJumpInput(Keyboard kb)
-        {
-            if ((kb.spaceKey.wasPressedThisFrame || kb.upArrowKey.wasPressedThisFrame)
-                && _isGrounded)
+            if (_jumpRequested && _isGrounded)
             {
-                float totalJumpForce = _jumpForce + GetJumpBonus();
-                _rb.linearVelocity = new Vector2(_rb.linearVelocity.x, totalJumpForce);
+                _rb.linearVelocity = new Vector2(_rb.linearVelocity.x, _jumpForce);
+                _jumpRequested = false;
             }
         }
 
-        private void HandleThrowInput(Keyboard kb)
+        // ─────────────────────────────────────────────────────────────
+        // SWIM MOVEMENT
+        // ─────────────────────────────────────────────────────────────
+
+        private void HandleSwimMovement()
         {
-            if (kb.tKey.wasPressedThisFrame)
-                GameEvents.RaiseThrowInput();
-        }
-
-        private void HandlePaletteInput(Keyboard kb)
-        {
-            // 1 = Cyan (index 0), 2 = Amber (index 1).
-            // Always fires — GlowMantleAI filters by encounter state.
-            if (kb.digit1Key.wasPressedThisFrame) GameEvents.RaisePaletteInput(0);
-            if (kb.digit2Key.wasPressedThisFrame) GameEvents.RaisePaletteInput(1);
-        }
-
-        // ─────────────────────────────────────────────────────────────────────
-        // Ground Check
-        // ─────────────────────────────────────────────────────────────────────
-
-        private void CheckGround()
-        {
-            // Pass 1 — broad spatial check: is anything on the Ground layer nearby?
-            bool overlap = Physics2D.OverlapCircle(
-                _groundCheck.position, _groundCheckRadius, _groundLayer);
-
-            if (!overlap)
+            if (_swimConfig == null)
             {
-                _isGrounded = false;
+                Debug.LogWarning("[PlayerController] SwimConfigSO not assigned. Assign it in the Inspector.", this);
                 return;
             }
 
-            // Pass 2 — normal filter: is any active contact coming from below?
-            // Wall contacts have a normal ~90° from Vector2.up and will be rejected.
-            // Floor and slope contacts are within _groundContactAngleMax and accepted.
-            // This prevents pressing against a wall from setting _isGrounded = true.
-            int count = _rb.GetContacts(_contactBuffer);
-            for (int i = 0; i < count; i++)
-            {
-                float angle = Vector2.Angle(_contactBuffer[i].normal, Vector2.up);
-                if (angle < _groundContactAngleMax)
-                {
-                    _isGrounded = true;
-                    return;
-                }
-            }
+            var keyboard = Keyboard.current;
+            if (keyboard == null) return;
 
-            _isGrounded = false;
-        }
+            float horizontal = 0f;
+            if (keyboard.aKey.isPressed) horizontal = -1f;
+            if (keyboard.dKey.isPressed) horizontal = 1f;
 
-        // ─────────────────────────────────────────────────────────────────────
-        // Sprite Flip
-        // ─────────────────────────────────────────────────────────────────────
-
-        private void FlipSprite()
-        {
-            if (_moveInput.x > 0f) transform.localScale = new Vector3(0.5f, 1f, 1f);
-            if (_moveInput.x < 0f) transform.localScale = new Vector3(-0.5f, 1f, 1f);
-        }
-
-        // ─────────────────────────────────────────────────────────────────────
-        // Slide State
-        // ─────────────────────────────────────────────────────────────────────
-
-        private void OnCollisionEnter2D(Collision2D collision)
-        {
-            if (_isSliding)
-                TryExitSlide(collision);
+            float vertical;
+            if (keyboard.wKey.isPressed)
+                vertical = _swimConfig.UpSpeed;
+            else if (keyboard.sKey.isPressed)
+                vertical = -_swimConfig.DownSpeed;
             else
-                TryEnterSlide(collision);
+                vertical = _swimConfig.BuoyancyForce;
+
+            _rb.linearVelocity = new Vector2(horizontal * _swimConfig.HorizontalSpeed, vertical);
+
+            _jumpRequested = false;
         }
 
-        private void OnCollisionStay2D(Collision2D collision)
+        private void CheckSwimGroundExit()
         {
-            // Handles the case where the slope curves into flat terrain within
-            // a single continuous collider contact — exit would never fire from
-            // OnCollisionEnter2D alone in that geometry.
-            if (!_isSliding) return;
-            TryExitSlide(collision);
+            if (_isGrounded && transform.position.y >= _waterSurfaceY)
+                ExitSwimState();
         }
 
-        private void TryEnterSlide(Collision2D collision)
-        {
-            if (collision.collider.sharedMaterial == null) return;
-            if (collision.collider.sharedMaterial.name != _slopeMaterialName) return;
+        // ─────────────────────────────────────────────────────────────
+        // SLIDE MOVEMENT
+        // ─────────────────────────────────────────────────────────────
 
-            foreach (ContactPoint2D contact in collision.contacts)
+        private void HandleSlideMovement()
+        {
+            if (_isOnSlipperySurface) return;
+
+            if (_isGrounded)
             {
-                float angle = Vector2.Angle(contact.normal, Vector2.up);
-                if (angle > _flatGroundAngleThreshold)
-                {
-                    EnterSlideState();
-                    return;
-                }
-            }
-        }
+                float deceleratedX = Mathf.MoveTowards(
+                    _rb.linearVelocity.x, 0f, _slideDecelerationRate * Time.fixedDeltaTime);
+                _rb.linearVelocity = new Vector2(deceleratedX, _rb.linearVelocity.y);
 
-        private void TryExitSlide(Collision2D collision)
-        {
-            // Exit check is material-agnostic — the landing surface may or may
-            // not share the SlipperySlope material; only the normal angle matters.
-            foreach (ContactPoint2D contact in collision.contacts)
-            {
-                float angle = Vector2.Angle(contact.normal, Vector2.up);
-                if (angle <= _flatGroundAngleThreshold)
-                {
+                if (Mathf.Abs(_rb.linearVelocity.x) < 0.05f)
                     ExitSlideState();
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // COLLISION CALLBACKS — slide detection
+        // ─────────────────────────────────────────────────────────────
+
+        private void OnCollisionStay2D(Collision2D col)
+        {
+            foreach (var contact in col.contacts)
+            {
+                bool isSteep = contact.normal.y > 0.1f && contact.normal.y < 0.7f;
+                bool isSlippery = col.collider.sharedMaterial != null
+                                  && col.collider.sharedMaterial.friction <= 0f;
+
+                if (isSteep && isSlippery)
+                {
+                    _isOnSlipperySurface = true;
+
+                    if (!_isSliding && !_isSwimming)
+                        EnterSlideState();
+
                     return;
                 }
             }
         }
+
+        // ─────────────────────────────────────────────────────────────
+        // SLIDE STATE
+        // ─────────────────────────────────────────────────────────────
 
         private void EnterSlideState()
         {
-            if (_isSliding) return;
             _isSliding = true;
-            _isDecelerating = false;
             GameEvents.RaiseSlideStateChanged(true);
         }
 
         private void ExitSlideState()
         {
-            if (!_isSliding) return;
             _isSliding = false;
-            _isDecelerating = true;
             GameEvents.RaiseSlideStateChanged(false);
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // Adaptation Bonus Queries
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────
+        // SWIM STATE
+        // ─────────────────────────────────────────────────────────────
 
-        private float GetJumpBonus() =>
-            _adaptationManager != null ? _adaptationManager.GetJumpBonus() : 0f;
-
-        private float GetMoveSpeedBonus() =>
-            _adaptationManager != null ? _adaptationManager.GetMoveSpeedBonus() : 0f;
-
-        // ─────────────────────────────────────────────────────────────────────
-        // Public Accessors
-        // ─────────────────────────────────────────────────────────────────────
-
-        /// <summary>Whether Dr. Maria is currently in the slide state.</summary>
-        public bool IsSliding => _isSliding;
-
-        /// <summary>Whether Dr. Maria is currently on the ground.</summary>
-        public bool IsGrounded => _isGrounded;
-
-        // ─────────────────────────────────────────────────────────────────────
-        // Debug
-        // ─────────────────────────────────────────────────────────────────────
-
-        private void OnDrawGizmosSelected()
+        private void HandleWaterEntered(float surfaceY)
         {
-            if (_groundCheck == null) return;
-            Gizmos.color = _isGrounded ? Color.green : Color.red;
-            Gizmos.DrawWireSphere(_groundCheck.position, _groundCheckRadius);
+            _waterSurfaceY = surfaceY;
+            EnterSwimState();
+        }
+
+        private void HandleWaterExited()
+        {
+            ExitSwimState();
+        }
+
+        private void EnterSwimState()
+        {
+            if (_isSliding) ExitSlideState();
+
+            _isSwimming = true;
+            _rb.gravityScale = 0f;
+            GameEvents.RaiseSwimStateChanged(true);
+        }
+
+        private void ExitSwimState()
+        {
+            _isSwimming = false;
+            _rb.gravityScale = _originalGravityScale;
+            GameEvents.RaiseSwimStateChanged(false);
         }
     }
 }

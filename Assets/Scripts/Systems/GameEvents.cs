@@ -1,158 +1,166 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// GameEvents.cs
-// Path: Assets/Scripts/Systems/GameEvents.cs
-// Terra's Heart — Central static event bus.
-//
-// Phase B Step 4 addition: OnPaletteInput — fired by PlayerController on
-// digit keys 1 and 2. Consumed by GlowMantleAI and GlowMantleHUDController.
-//
-// BrineglowDescent addition: OnSlideStateChanged — fired by PlayerController
-// when Dr. Maria enters or exits the slide state on a slope surface.
-// Consumed by: animation system and camera system (production phase).
-// ─────────────────────────────────────────────────────────────────────────────
-
 using System;
-using TerrasHeart.Scanner;
-using TerrasHeart.Adaptations;
-using TerrasHeart.Environment;
 using UnityEngine;
 
 namespace TerrasHeart.Events
 {
+    /// <summary>
+    /// Static event bus for all cross-system communication in Terra's Heart.
+    /// Subscribe in OnEnable, unsubscribe in OnDisable.
+    /// Never add, remove, or rename existing events — only append new ones.
+    /// </summary>
     public static class GameEvents
     {
-        // ─── Scanner ──────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────
+        // SCANNER
+        // ─────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Raised when Dr. Maria successfully completes a full scan.
-        /// Consumed by: ResearchJournalManager, SpecimenInventory, BiomeHealthManager.
-        /// </summary>
-        public static event Action<ScanResult> OnScanComplete;
-
-        /// <summary>
-        /// Raised the moment the scanner beam locks onto a valid IScannable target.
-        /// Consumed by: ScannerUI (future), creature reaction systems (future).
-        /// </summary>
-        public static event Action<IScannable> OnScanBegin;
-
-        /// <summary>
-        /// Raised when a scan in progress is interrupted.
-        /// Consumed by: ScannerUI (future).
-        /// </summary>
+        public static event Action<Scanner.ScanResult> OnScanComplete;
+        public static event Action<Scanner.IScannable> OnScanBegin;
         public static event Action OnScanInterrupted;
 
-        public static void RaiseScanComplete(ScanResult result) => OnScanComplete?.Invoke(result);
-        public static void RaiseScanBegin(IScannable target) => OnScanBegin?.Invoke(target);
+        public static void RaiseScanComplete(Scanner.ScanResult result) => OnScanComplete?.Invoke(result);
+        public static void RaiseScanBegin(Scanner.IScannable target) => OnScanBegin?.Invoke(target);
         public static void RaiseScanInterrupted() => OnScanInterrupted?.Invoke();
 
-        // ─── Adaptations ──────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────
+        // ADAPTATIONS
+        // ─────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Raised when Dr. Maria crafts and unlocks a new adaptation.
-        /// Consumed by: AdaptationUI (future), gate controllers.
-        /// </summary>
-        public static event Action<AdaptationSO> OnAdaptationUnlocked;
+        public static event Action<Adaptations.AdaptationSO> OnAdaptationUnlocked;
 
-        public static void RaiseAdaptationUnlocked(AdaptationSO adaptation) =>
-            OnAdaptationUnlocked?.Invoke(adaptation);
+        public static void RaiseAdaptationUnlocked(Adaptations.AdaptationSO adaptation)
+            => OnAdaptationUnlocked?.Invoke(adaptation);
 
-        // ─── World State ──────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────
+        // WORLD STATE / BIOME HEALTH
+        // ─────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Raised when a biome's ecological health score changes.
-        /// Args: biomeID (string), newHealthValue (float 0–100).
-        /// Consumed by: EcologicalHealthVolume, BiologicalResourceNode depletion,
-        ///              MusicLayerManager (future).
-        /// </summary>
+        /// <summary>Raised by BiomeHealthManager AFTER health changes. biomeID + new health value (0–100).</summary>
         public static event Action<string, float> OnBiomeHealthChanged;
 
-        public static void RaiseBiomeHealthChanged(string biomeID, float newHealth) =>
-            OnBiomeHealthChanged?.Invoke(biomeID, newHealth);
+        /// <summary>Raised by environmental sources (stalactites, hazards) to REQUEST a health change.
+        /// BiomeHealthManager subscribes and applies. Never call BiomeHealthManager directly.</summary>
+        public static event Action<string, float> OnBiomeHealthDelta;
 
-        // ─── Resources ────────────────────────────────────────────────────────
+        public static void RaiseBiomeHealthChanged(string biomeID, float health)
+            => OnBiomeHealthChanged?.Invoke(biomeID, health);
 
-        /// <summary>
-        /// Raised when Dr. Maria picks up a resource node (E key).
-        /// Args: nodeType (ResourceNodeType), amount (int — always 1 per pickup).
-        /// Consumed by: CraftingMaterialInventory on DrMaria.
-        /// </summary>
-        public static event Action<ResourceNodeType, int> OnResourceCollected;
+        public static void RaiseBiomeHealthDelta(string biomeID, float delta)
+            => OnBiomeHealthDelta?.Invoke(biomeID, delta);
 
-        public static void RaiseResourceCollected(ResourceNodeType nodeType, int amount) =>
-            OnResourceCollected?.Invoke(nodeType, amount);
+        // ─────────────────────────────────────────────────────────────
+        // CREW
+        // ─────────────────────────────────────────────────────────────
 
-        // ─── Player Actions ───────────────────────────────────────────────────
+        public static event Action<string, float> OnCrewMoraleChanged;
 
-        /// <summary>
-        /// Raised when the player presses the throw key (T).
-        /// Consumed by: ThrowController on DrMaria.
-        /// </summary>
+        public static void RaiseCrewMoraleChanged(string crewID, float morale)
+            => OnCrewMoraleChanged?.Invoke(crewID, morale);
+
+        // ─────────────────────────────────────────────────────────────
+        // CREATURE / ENCOUNTER
+        // ─────────────────────────────────────────────────────────────
+
+        /// <summary>Raised by FoodMarker.Start(). position = world-space landing point.</summary>
+        public static event Action<Vector2> OnFoodPlaced;
+
+        /// <summary>Raised by PlayerController. 0 = Cyan, 1 = Amber.</summary>
+        public static event Action<int> OnPaletteInput;
+
+        public static void RaiseFoodPlaced(Vector2 position) => OnFoodPlaced?.Invoke(position);
+        public static void RaisePaletteInput(int index) => OnPaletteInput?.Invoke(index);
+
+        // ─────────────────────────────────────────────────────────────
+        // PLAYER STATE
+        // ─────────────────────────────────────────────────────────────
+
+        /// <summary>true = entering slide, false = exiting slide.</summary>
+        public static event Action<bool> OnSlideStateChanged;
+
+        /// <summary>true = entering swim, false = exiting swim.</summary>
+        public static event Action<bool> OnSwimStateChanged;
+
+        public static void RaiseSlideStateChanged(bool isSliding) => OnSlideStateChanged?.Invoke(isSliding);
+        public static void RaiseSwimStateChanged(bool isSwimming) => OnSwimStateChanged?.Invoke(isSwimming);
+
+        // ─────────────────────────────────────────────────────────────
+        // WATER / SWIMMING
+        // ─────────────────────────────────────────────────────────────
+
+        /// <summary>Raised by WaterVolume on trigger enter. float = world-space surface Y.</summary>
+        public static event Action<float> OnWaterEntered;
+
+        /// <summary>Raised by WaterVolume on trigger exit.</summary>
+        public static event Action OnWaterExited;
+
+        /// <summary>Raised by WaterTriggerHandler on splash. position = world-space splash point.</summary>
+        public static event Action<Vector2, float, float> OnWaterSplash;
+
+        /// <summary>Raised by WaterSubmersionController. bool = true when submerged, false when surfaced.</summary>
+        public static event Action<bool> OnPlayerSubmerged;
+
+        public static void RaiseWaterEntered(float surfaceY) => OnWaterEntered?.Invoke(surfaceY);
+        public static void RaiseWaterExited() => OnWaterExited?.Invoke();
+        public static void RaiseWaterSplash(Vector2 center, float radius, float force) => OnWaterSplash?.Invoke(center, radius, force);
+        public static void RaisePlayerSubmerged(bool isSubmerged) => OnPlayerSubmerged?.Invoke(isSubmerged);
+
+        // ─────────────────────────────────────────────────────────────
+        // OXYGEN
+        // ─────────────────────────────────────────────────────────────
+
+        /// <summary>Raised by OxygenManager every Update while swimming. normalizedOxygen = 0–1 (1 = full).</summary>
+        public static event Action<float> OnOxygenChanged;
+
+        /// <summary>Raised once per dive when oxygen drops to CriticalThreshold.</summary>
+        public static event Action OnOxygenCritical;
+
+        /// <summary>Raised once when oxygen reaches 0.</summary>
+        public static event Action OnOxygenDepleted;
+
+        public static void RaiseOxygenChanged(float normalizedOxygen) => OnOxygenChanged?.Invoke(normalizedOxygen);
+        public static void RaiseOxygenCritical() => OnOxygenCritical?.Invoke();
+        public static void RaiseOxygenDepleted() => OnOxygenDepleted?.Invoke();
+
+        // ─────────────────────────────────────────────────────────────
+        // ENVIRONMENTAL HAZARDS
+        // ─────────────────────────────────────────────────────────────
+
+        /// <summary>Raised by StalactiteHazard when it begins falling. position = world-space origin.</summary>
+        public static event Action<Vector2> OnStalactiteFall;
+
+        /// <summary>Raised by StalactiteHazard when it lands. position = world-space landing point.</summary>
+        public static event Action<Vector2> OnStalactiteLanded;
+
+        public static void RaiseStalactiteFall(Vector2 position) => OnStalactiteFall?.Invoke(position);
+        public static void RaiseStalactiteLanded(Vector2 position) => OnStalactiteLanded?.Invoke(position);
+
+        // ─────────────────────────────────────────────────────────────
+        // TRAVERSAL
+        // ─────────────────────────────────────────────────────────────
+
+        /// <summary>Raised by JumpPad when it launches the player. position = pad world-space position.</summary>
+        public static event Action<Vector2> OnJumpPadLaunched;
+
+        public static void RaiseJumpPadLaunched(Vector2 position) => OnJumpPadLaunched?.Invoke(position);
+
+        // ─────────────────────────────────────────────────────────────
+        // COMBAT
+        // ─────────────────────────────────────────────────────────────
+
+        /// <summary>Raised by PlayerController when the throw input is pressed (T key).</summary>
         public static event Action OnThrowInput;
 
         public static void RaiseThrowInput() => OnThrowInput?.Invoke();
 
-        /// <summary>
-        /// Raised by FoodMarker on Start() after it is placed in the world.
-        /// Args: worldPosition (Vector2) — the exact landing point.
-        /// Consumed by: CaveLuminothAI, TarnCreeperAI.
-        /// </summary>
-        public static event Action<Vector2> OnFoodPlaced;
+        // ─────────────────────────────────────────────────────────────
+        // RESOURCES
+        // ─────────────────────────────────────────────────────────────
 
-        // ─── Water ───────────────────────────────────────────────────────────────────
+        /// <summary>Raised by ResourceNode when a resource is collected.
+        /// string = ResourceNodeType name, int = amount collected.</summary>
+        public static event Action<string, int> OnResourceCollected;
 
-        /// <summary>
-        /// Raised when an object enters the water trigger and triggers a splash.
-        /// Args: splashCenter (Vector2 world pos), radius (float), force (float).
-        /// Future consumers: WaterSoundManager, BioluminescentFlashController, ScanTrigger.
-        /// </summary>
-        public static event Action<Vector2, float, float> OnWaterSplash;
-
-        // <summary>
-        /// Raised when DrMaria enters or exits the water volume trigger.
-        /// Args: isSubmerged (bool) — true on entry, false on exit.
-        /// Future consumers: AnimationController (swim state), AudioManager (underwater ambience).
-        /// </summary>
-        public static event Action<bool> OnPlayerSubmerged;
-
-        public static void RaisePlayerSubmerged(bool isSubmerged) =>
-            OnPlayerSubmerged?.Invoke(isSubmerged);
-
-        public static void RaiseWaterSplash(Vector2 center, float radius, float force) =>
-            OnWaterSplash?.Invoke(center, radius, force);
-
-        public static void RaiseFoodPlaced(Vector2 position) => OnFoodPlaced?.Invoke(position);
-
-        /// <summary>
-        /// Raised when the player presses a palette key (1 or 2) for the
-        /// Glow-Mantle call-and-response encounter.
-        /// Args: index (int) — 0 = Cyan, 1 = Amber.
-        /// Consumed by: GlowMantleAI (sequence validation),
-        ///              GlowMantleHUDController (swatch flash).
-        /// Always raised on key press — GlowMantleAI filters by state.
-        /// </summary>
-        public static event Action<int> OnPaletteInput;
-
-        public static void RaisePaletteInput(int index) => OnPaletteInput?.Invoke(index);
-
-        /// <summary>
-        /// Raised when Dr. Maria enters or exits the slide state on a slope surface.
-        /// Args: isSliding (bool) — true = slide entered, false = slide exited.
-        /// Consumed by: animation system and camera system (production phase).
-        /// </summary>
-        public static event Action<bool> OnSlideStateChanged;
-
-        public static void RaiseSlideStateChanged(bool isSliding) =>
-            OnSlideStateChanged?.Invoke(isSliding);
-
-        // ─── Crew (reserved) ─────────────────────────────────────────────────
-
-        /// <summary>
-        /// Raised when a crew member's morale value changes.
-        /// Args: crewMemberName (string), newMorale (float 0–100).
-        /// </summary>
-        public static event Action<string, float> OnCrewMoraleChanged;
-
-        public static void RaiseCrewMoraleChanged(string crewMemberName, float newMorale) =>
-            OnCrewMoraleChanged?.Invoke(crewMemberName, newMorale);
+        public static void RaiseResourceCollected(string resourceType, int amount)
+            => OnResourceCollected?.Invoke(resourceType, amount);
     }
 }

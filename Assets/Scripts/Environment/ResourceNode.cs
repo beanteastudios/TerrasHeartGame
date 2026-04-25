@@ -141,7 +141,7 @@ namespace TerrasHeart.Environment
         {
             _collected = true;
 
-            GameEvents.RaiseResourceCollected(_nodeType, 1);
+            GameEvents.RaiseResourceCollected(_nodeType.ToString(), 1);
 
             Debug.Log($"[ResourceNode] Collected: {_nodeName} ({_nodeType})");
 

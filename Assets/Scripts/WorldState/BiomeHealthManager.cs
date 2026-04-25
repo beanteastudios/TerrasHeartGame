@@ -1,164 +1,155 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// BiomeHealthManager.cs
-// Path: Assets/Scripts/WorldState/BiomeHealthManager.cs
-// Terra's Heart — Owns the ecological health float for one biome.
-// Subscribes to scan events and fires OnBiomeHealthChanged when health changes.
-//
-// Attach to: GameManagers (same GameObject as ResearchJournalManager)
-//
-// This is the "world remembers neglect" pillar in code.
-// Every scan decision — alive vs dead, restored vs standard — has a real
-// consequence here. EcologicalHealthVolume listens to OnBiomeHealthChanged
-// and drives URP colour grade visuals.
-//
-// Step 5 addition: InitialiseForScene() — called by BiomeHealthInitializer
-// in each scene to hot-swap the config after GameManagers persists across loads.
-//
-// Phase B Step 1 — Bug fix:
-//   HandleScanComplete now branches on ScanResult.IsRestoredCorrupted.
-//   Corrupted creature restorations apply CorruptedRestoration (+15).
-//   Standard alive scans apply ScanRestoration (+3).
-//   Dead scans apply -KillPenalty.
-//   All health changes route through this single handler — no direct calls
-//   from creature AI scripts.
-//   ApplyCorruptedRestoration() removed: it was called directly by TarnCreeperAI,
-//   which caused double-counting. That direct reference has been removed.
-// ─────────────────────────────────────────────────────────────────────────────
-
+using System.Collections.Generic;
 using UnityEngine;
 using TerrasHeart.Events;
 using TerrasHeart.Scanner;
+using TerrasHeart.WorldState;
 
-namespace TerrasHeart.WorldState
+namespace TerrasHeart.World
 {
+    /// <summary>
+    /// Single authority for biome health. Manages health floats (0–100) per biome.
+    /// All health changes route through this manager — nothing calls it directly.
+    ///
+    /// INPUTS:
+    ///   OnScanComplete       → scan restoration or corrupted restoration
+    ///   OnBiomeHealthDelta   → environmental delta requests (stalactites, hazards)
+    ///
+    /// OUTPUT:
+    ///   OnBiomeHealthChanged (biomeID, newHealth)
+    ///   → consumed by EcologicalHealthVolume, BiomeVisualController
+    ///
+    /// InitialiseForScene() is called by BiomeHealthInitializer on each scene load
+    /// to hot-swap the config without destroying the persistent manager.
+    /// </summary>
     public class BiomeHealthManager : MonoBehaviour
     {
-        [Header("Configuration")]
-        [Tooltip("Assign the BiomeHealthConfig SO for this scene's biome. " +
-                 "In Step 5 this is overridden at runtime by BiomeHealthInitializer " +
-                 "when scenes are loaded — but assign PrologueHealth.asset here " +
-                 "as the default for the Prologue scene.")]
-        [SerializeField] private BiomeHealthConfigSO _config;
+        [Header("Biome Configs")]
+        [Tooltip("Add one BiomeHealthConfigSO per biome. BrineglowDescentHealth.asset for the vertical slice.")]
+        [SerializeField] private List<BiomeHealthConfigSO> _biomeConfigs;
 
-        // ─── Runtime State ────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────
+        // INTERNAL MAPS
+        // ─────────────────────────────────────────────────────────────
 
-        private float _currentHealth;
+        private readonly Dictionary<string, float> _healthMap = new();
+        private readonly Dictionary<string, BiomeHealthConfigSO> _configMap = new();
 
-        // ─── Public Read Access ───────────────────────────────────────────────
-
-        /// <summary>Current biome health (0–100). Read by EcologicalHealthVolume.</summary>
-        public float CurrentHealth => _currentHealth;
-
-        /// <summary>Health normalised 0–1. Convenient for Lerp calls in visual systems.</summary>
-        public float HealthNormalised => _currentHealth / 100f;
-
-        // ─────────────────────────────────────────────────────────────────────
-        // Unity Lifecycle
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────
+        // LIFECYCLE
+        // ─────────────────────────────────────────────────────────────
 
         private void Awake()
         {
-            if (_config == null)
+            foreach (var config in _biomeConfigs)
             {
-                Debug.LogWarning("[BiomeHealthManager] No BiomeHealthConfigSO assigned. " +
-                                 "Defaulting to 100% health.");
-                _currentHealth = 100f;
-                return;
+                if (config == null) continue;
+                RegisterConfig(config);
             }
-
-            _currentHealth = _config.StartingHealth;
         }
 
         private void OnEnable()
         {
             GameEvents.OnScanComplete += HandleScanComplete;
+            GameEvents.OnBiomeHealthDelta += HandleBiomeHealthDelta;
         }
 
         private void OnDisable()
         {
             GameEvents.OnScanComplete -= HandleScanComplete;
+            GameEvents.OnBiomeHealthDelta -= HandleBiomeHealthDelta;
         }
 
-        private void Start()
-        {
-            // Fire initial health event so EcologicalHealthVolume sets the correct
-            // visual state at scene load — not just on first scan.
-            FireHealthEvent();
-        }
-
-        // ─────────────────────────────────────────────────────────────────────
-        // Scene Initialisation — called by BiomeHealthInitializer
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────
+        // SCENE INITIALISATION
+        // ─────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Hot-swaps the biome config when a new scene loads.
-        /// Called by BiomeHealthInitializer which lives in each scene.
-        /// Resets health to the new config's starting value and fires the
-        /// initial health event so EcologicalHealthVolume updates immediately.
+        /// Called by BiomeHealthInitializer on scene load to register or reset
+        /// the config for the current scene's biome. Safe to call multiple times —
+        /// will not reset health if the biome is already tracked (preserves
+        /// ecological state across scene transitions within the same session).
         /// </summary>
         public void InitialiseForScene(BiomeHealthConfigSO config)
         {
-            _config = config;
-            _currentHealth = config.StartingHealth;
-            FireHealthEvent();
-        }
+            if (config == null) return;
 
-        // ─────────────────────────────────────────────────────────────────────
-        // Scan Event Handler — single source of truth for all scan-driven health
-        // ─────────────────────────────────────────────────────────────────────
-
-        private void HandleScanComplete(ScanResult result)
-        {
-            if (_config == null || result?.SourceData == null) return;
-
-            // Only react to creatures scanned in this biome.
-            if (result.SourceData.BiomeID != _config.BiomeID) return;
-
-            if (result.IsRestoredCorrupted)
-                // Tame-and-scan completion: larger restoration reward.
-                ApplyChange(_config.CorruptedRestoration, "corrupted creature restored");
-            else if (result.WasAlive)
-                // Standard live scan: small ecological restoration.
-                ApplyChange(_config.ScanRestoration, "alive scan");
+            // Only register if not already tracked — preserves health across revisits
+            if (!_configMap.ContainsKey(config.BiomeID))
+            {
+                RegisterConfig(config);
+                Debug.Log($"[BiomeHealthManager] Registered new biome: {config.BiomeID} " +
+                          $"at {config.StartingHealth}%");
+            }
             else
-                // Dead scan or kill: ecological penalty.
-                ApplyChange(-_config.KillPenalty, "dead scan");
+            {
+                Debug.Log($"[BiomeHealthManager] Biome already tracked: {config.BiomeID} " +
+                          $"at {_healthMap[config.BiomeID]}% (state preserved)");
+            }
+
+            // Broadcast current health immediately so visual systems sync on scene load
+            GameEvents.RaiseBiomeHealthChanged(config.BiomeID, _healthMap[config.BiomeID]);
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // Public API
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────
+        // INTERNAL REGISTRATION
+        // ─────────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// Call when Dr. Maria kills a healthy creature in this biome without
-        /// scanning it first. Separate from the scan event path — wired up
-        /// when full combat kill detection is implemented.
-        /// </summary>
-        public void ApplyKillPenalty()
+        private void RegisterConfig(BiomeHealthConfigSO config)
         {
-            if (_config == null) return;
-            ApplyChange(-_config.KillPenalty, "creature killed unscanned");
+            _healthMap[config.BiomeID] = config.StartingHealth;
+            _configMap[config.BiomeID] = config;
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        // Private Helpers
-        // ─────────────────────────────────────────────────────────────────────
+        // ─────────────────────────────────────────────────────────────
+        // SCAN COMPLETE
+        // ─────────────────────────────────────────────────────────────
 
-        private void ApplyChange(float delta, string reason)
+        public void HandleScanComplete(ScanResult result)
         {
-            float previous = _currentHealth;
-            _currentHealth = Mathf.Clamp(_currentHealth + delta, 0f, 100f);
+            if (result == null) return;
 
-            Debug.Log($"[BiomeHealth] {_config.BiomeID}: {previous:F1} → {_currentHealth:F1} " +
-                      $"({(delta >= 0 ? "+" : "")}{delta:F1} — {reason})");
+            string biomeID = result.SourceData?.BiomeID;
+            if (string.IsNullOrEmpty(biomeID)) return;
+            if (!_configMap.TryGetValue(biomeID, out var config)) return;
 
-            FireHealthEvent();
+            float delta = result.IsRestoredCorrupted
+                ? config.CorruptedRestoration
+                : config.ScanRestoration;
+
+            ApplyDelta(biomeID, delta);
         }
 
-        private void FireHealthEvent()
+        // ─────────────────────────────────────────────────────────────
+        // BIOME HEALTH DELTA (environmental sources)
+        // ─────────────────────────────────────────────────────────────
+
+        private void HandleBiomeHealthDelta(string biomeID, float delta)
         {
-            if (_config == null) return;
-            GameEvents.RaiseBiomeHealthChanged(_config.BiomeID, _currentHealth);
+            ApplyDelta(biomeID, delta);
         }
+
+        // ─────────────────────────────────────────────────────────────
+        // APPLY DELTA
+        // ─────────────────────────────────────────────────────────────
+
+        private void ApplyDelta(string biomeID, float delta)
+        {
+            if (!_healthMap.ContainsKey(biomeID))
+            {
+                Debug.LogWarning($"[BiomeHealthManager] BiomeID '{biomeID}' not found in config map.", this);
+                return;
+            }
+
+            _healthMap[biomeID] = Mathf.Clamp(_healthMap[biomeID] + delta, 0f, 100f);
+            GameEvents.RaiseBiomeHealthChanged(biomeID, _healthMap[biomeID]);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // PUBLIC ACCESSOR
+        // ─────────────────────────────────────────────────────────────
+
+        /// <summary>Returns current health for a biome (0–100). Returns 0 if biomeID not found.</summary>
+        public float GetHealth(string biomeID)
+            => _healthMap.TryGetValue(biomeID, out float h) ? h : 0f;
     }
 }

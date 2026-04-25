@@ -47,8 +47,14 @@ namespace TerrasHeart.Environment
         // Event Handler
         // ─────────────────────────────────────────────────────────────────────
 
-        private void HandleResourceCollected(ResourceNodeType nodeType, int amount)
+        private void HandleResourceCollected(string nodeTypeStr, int amount)
         {
+            if (!System.Enum.TryParse(nodeTypeStr, out ResourceNodeType nodeType))
+            {
+                Debug.LogWarning($"[CraftingMaterials] Unknown resource type: {nodeTypeStr}");
+                return;
+            }
+
             if (!_counts.ContainsKey(nodeType))
                 _counts[nodeType] = 0;
 
