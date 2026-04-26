@@ -1,6 +1,5 @@
 using System.Collections;
 using UnityEngine;
-using TerrasHeart.Systems;
 using TerrasHeart.Events;
 
 namespace TerrasHeart.Environment
@@ -13,7 +12,7 @@ namespace TerrasHeart.Environment
     ///   - Rigidbody2D: Body Type = Static initially. Gravity Scale = 0.
     ///   - Collider2D: BoxCollider2D or PolygonCollider2D — NOT trigger.
     ///   - StalactiteConfigSO: assign matching config for standard or instakill variant.
-    ///   - Layer: Default (solid ground layer for landing detection).
+    ///   - Layer: Default.
     ///   - Player tag: DrMaria's GameObject must have the "Player" tag.
     ///
     /// Biome health penalty routes through GameEvents.OnBiomeHealthDelta → BiomeHealthManager.
@@ -44,8 +43,8 @@ namespace TerrasHeart.Environment
         // ─────────────────────────────────────────────────────────────
 
         private Rigidbody2D _rb;
-        private State       _currentState = State.Idle;
-        private bool        _proximityTriggered;
+        private State _currentState = State.Idle;
+        private bool _proximityTriggered;
 
         // ─────────────────────────────────────────────────────────────
         // LIFECYCLE
@@ -54,7 +53,7 @@ namespace TerrasHeart.Environment
         private void Awake()
         {
             _rb = GetComponent<Rigidbody2D>();
-            _rb.bodyType    = RigidbodyType2D.Static;
+            _rb.bodyType = RigidbodyType2D.Static;
             _rb.gravityScale = 0f;
         }
 
@@ -67,7 +66,9 @@ namespace TerrasHeart.Environment
             if (_currentState != State.Idle || _proximityTriggered) return;
             if (_config == null) return;
 
-            Collider2D hit = Physics2D.OverlapCircle(transform.position, _config.ProximityRadius, _playerLayer);
+            Collider2D hit = Physics2D.OverlapCircle(
+                transform.position, _config.ProximityRadius, _playerLayer);
+
             if (hit != null)
             {
                 _proximityTriggered = true;
@@ -93,10 +94,9 @@ namespace TerrasHeart.Environment
         {
             _currentState = State.Warning;
 
-            Vector3 origin  = transform.position;
-            float   elapsed = 0f;
+            Vector3 origin = transform.position;
+            float elapsed = 0f;
 
-            // Shake: ~2-pixel oscillation at 32 PPU (1 pixel = 0.03125 units)
             const float ShakeMagnitude = 0.0625f;
             const float ShakeFrequency = 30f;
 
@@ -108,7 +108,6 @@ namespace TerrasHeart.Environment
                 yield return null;
             }
 
-            // Snap back before transitioning — prevents position drift
             transform.position = origin;
             TransitionToFalling();
         }
@@ -119,21 +118,33 @@ namespace TerrasHeart.Environment
 
         private void TransitionToFalling()
         {
-            _currentState        = State.Falling;
-            _rb.bodyType         = RigidbodyType2D.Dynamic;
-            _rb.gravityScale     = 0f;
-            _rb.linearVelocity   = Vector2.down * _config.FallSpeed;
+            _currentState = State.Falling;
+            _rb.bodyType = RigidbodyType2D.Dynamic;
+            _rb.gravityScale = 0f;
+            _rb.linearVelocity = Vector2.down * _config.FallSpeed;
+
+            // Ignore all colliders currently overlapping or touching this stalactite
+            // This prevents it from immediately landing on the ceiling it's embedded in
+            Collider2D myCollider = GetComponent<Collider2D>();
+            ContactFilter2D filter = new ContactFilter2D();
+            filter.SetLayerMask(LayerMask.GetMask("Ground", "Default"));
+            filter.useLayerMask = true;
+
+            Collider2D[] overlapping = new Collider2D[10];
+            int count = Physics2D.OverlapCollider(myCollider, filter, overlapping);
+            for (int i = 0; i < count; i++)
+                Physics2D.IgnoreCollision(myCollider, overlapping[i], true);
 
             GameEvents.RaiseStalactiteFall(transform.position);
         }
 
         private void TransitionToLanded()
         {
-            _currentState      = State.Landed;
+            _currentState = State.Landed;
             _rb.linearVelocity = Vector2.zero;
-            _rb.bodyType       = RigidbodyType2D.Static;
+            _rb.bodyType = RigidbodyType2D.Static;
 
-            // Ecological consequence — route through event bus, never call BiomeHealthManager directly
+            // Ecological consequence — route through event bus
             GameEvents.RaiseStalactiteLanded(transform.position);
             GameEvents.RaiseBiomeHealthDelta(_config.BiomeID, -_config.BiomeHealthPenalty);
         }
@@ -148,10 +159,10 @@ namespace TerrasHeart.Environment
 
             if (col.gameObject.CompareTag("Player"))
             {
-                int finalDamage = _config.IsInstakill ? 9999 : _config.Damage;
+                int finalDamage = _config.IsInstakill ? 80 : _config.Damage;
                 // TODO: route to HealthManager when it exists
                 Debug.Log($"[StalactiteHazard] Player hit for {finalDamage} damage. (HealthManager stub)");
-                // Stalactite continues falling after hitting player — does not stop on the player
+                // Stalactite continues falling after hitting player
                 return;
             }
 
