@@ -26,7 +26,8 @@ namespace TerrasHeart.Player
         [Tooltip("Horizontal move speed on land (units/s).")]
         [SerializeField] private float _moveSpeed = 5f;
 
-        [Tooltip("Vertical launch force applied on jump.")]
+        [Header("Jump")]
+        [Tooltip("Vertical launch force applied on a normal jump.")]
         [SerializeField] private float _jumpForce = 10f;
 
         [Header("Swim")]
@@ -56,16 +57,15 @@ namespace TerrasHeart.Player
         // Grounded
         private bool _isGrounded;
 
+        // Jump
+        private bool _jumpRequested;
+
         // Slide
         private bool _isSliding;
         private bool _isDecelerating;
 
         // Swim — gravity/damping managed by WaterSubmersionController
-        // PlayerController only manages input override
         private bool _isSwimming;
-
-        // Jump buffering (captured in Update, consumed in FixedUpdate)
-        private bool _jumpRequested;
 
         // ─────────────────────────────────────────────────────────────
         // PUBLIC ACCESSORS
@@ -109,8 +109,12 @@ namespace TerrasHeart.Player
             if (keyboard == null) return;
 
             // Jump buffering — captured here, consumed in FixedUpdate
+            // RaiseJumpInput fires immediately so JumpPad can cancel before FixedUpdate runs
             if (keyboard.spaceKey.wasPressedThisFrame)
+            {
                 _jumpRequested = true;
+                GameEvents.RaiseJumpInput();
+            }
 
             // Palette input — raise immediately on press
             if (keyboard.digit1Key.wasPressedThisFrame) GameEvents.RaisePaletteInput(0); // Cyan
@@ -163,12 +167,26 @@ namespace TerrasHeart.Player
 
             _rb.linearVelocity = new Vector2(horizontal * _moveSpeed, _rb.linearVelocity.y);
 
-            if (_jumpRequested && _isGrounded)
-            {
-                _rb.linearVelocity = new Vector2(_rb.linearVelocity.x, _jumpForce);
-                _jumpRequested = false;
-            }
+            ApplyJump();
         }
+
+        // ─────────────────────────────────────────────────────────────
+        // JUMP
+        // ─────────────────────────────────────────────────────────────
+
+        private void ApplyJump()
+        {
+            if (!_jumpRequested || !_isGrounded) return;
+
+            _rb.linearVelocity = new Vector2(_rb.linearVelocity.x, _jumpForce);
+            _jumpRequested = false;
+        }
+
+        /// <summary>
+        /// Called by JumpPad to cancel the buffered normal jump before FixedUpdate applies it.
+        /// JumpPad applies its own boosted launch force instead.
+        /// </summary>
+        public void CancelJumpRequest() => _jumpRequested = false;
 
         // ─────────────────────────────────────────────────────────────
         // SWIM MOVEMENT

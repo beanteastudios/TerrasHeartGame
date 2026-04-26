@@ -23,13 +23,11 @@ namespace TerrasHeart.Environment
 
         private void OnTriggerEnter2D(Collider2D other)
         {
-            Debug.Log($"[WaterVolume] Trigger entered by: {other.gameObject.name} tag: {other.gameObject.tag}");
 
             if (!other.CompareTag("Player")) return;
 
             if (_volumeConfig == null)
             {
-                Debug.LogWarning($"[WaterVolume] No WaterVolumeSO assigned on {gameObject.name}. Defaulting SurfaceY to 0.", this);
                 GameEvents.RaiseWaterEntered(transform.position.y);
                 return;
             }

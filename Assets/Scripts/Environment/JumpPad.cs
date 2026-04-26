@@ -2,22 +2,28 @@ using System.Collections;
 using UnityEngine;
 using TerrasHeart.Events;
 using TerrasHeart.Scanner;
+using TerrasHeart.Player;
 
 namespace TerrasHeart.Environment
 {
     /// <summary>
-    /// Bioluminescent cave organism (mushroom or biological spring) that launches Dr. Maria upward.
-    /// Implements IScannable — scanning it yields a journal entry (science-first interaction).
+    /// Bioluminescent spring organism. Provides a boosted jump when DrMaria
+    /// stands on it and presses Space — player retains full control.
+    /// Implements IScannable — scanning yields a journal entry.
     ///
     /// SETUP:
-    ///   - Collider2D: BoxCollider2D, NOT trigger. Top surface triggers the launch.
-    ///   - Layer: Scannable — so ScannerController's raycast detects it.
-    ///   - DrMaria must have tag "Player".
-    ///   - Assign JumpPadConfigSO and a CreatureDataSO (the organism's scan data).
-    ///   - SpriteRenderer on same object or child — used for visual scale punch.
+    ///   Parent GameObject (JumpPad_01):
+    ///     - Layer: Scannable (scanner detection)
+    ///     - JumpPad component
+    ///     - No collider on parent
     ///
-    /// DESIGN NOTE: This is a living organism. Scanning before using is the ideal
-    /// first interaction. The scan gives a journal entry about the organism.
+    ///   Child GameObject (JumpPad_Ground):
+    ///     - Layer: Ground (so PlayerController.IsGrounded works)
+    ///     - BoxCollider2D, NOT trigger, size ~1.5 x 0.3
+    ///     - No scripts
+    ///
+    /// The boosted jump fires when PlayerController raises OnJumpRequested
+    /// while DrMaria is grounded on this pad's child collider.
     /// </summary>
     public class JumpPad : MonoBehaviour, IScannable
     {
@@ -32,7 +38,10 @@ namespace TerrasHeart.Environment
         [Tooltip("CreatureDataSO for this organism. BiomeID = BrineglowDescent, AliveTier = Uncommon.")]
         [SerializeField] private CreatureDataSO _data;
 
-        [Header("Visual")]
+        [Header("References")]
+        [Tooltip("The child GameObject that has the Ground-layer BoxCollider2D.")]
+        [SerializeField] private Collider2D _groundCollider;
+
         [Tooltip("SpriteRenderer to punch on launch. Can be this object's own or a child.")]
         [SerializeField] private SpriteRenderer _spriteRenderer;
 
@@ -40,6 +49,8 @@ namespace TerrasHeart.Environment
         // STATE
         // ─────────────────────────────────────────────────────────────
 
+        private bool _playerOnPad;
+        private Rigidbody2D _playerRb;
         private bool _onCooldown;
 
 #pragma warning disable CS0414
@@ -47,68 +58,70 @@ namespace TerrasHeart.Environment
 #pragma warning restore CS0414
 
         // ─────────────────────────────────────────────────────────────
-        // ISCANNABLE IMPLEMENTATION
+        // ISCANNABLE
         // ─────────────────────────────────────────────────────────────
 
-        /// <summary>Jump pad organism is always alive — scannable at any time.</summary>
         public bool IsAlive => true;
-
-        /// <summary>Returns the organism's scan data SO.</summary>
         public CreatureDataSO GetData() => _data;
+        public void OnScanBegin() { _beingScanned = true; }
+        public void OnScanComplete() { _beingScanned = false; }
+        public void OnScanInterrupted() { _beingScanned = false; }
 
-        /// <summary>Scanner beam locked on — optional: show a highlight or pulse.</summary>
-        public void OnScanBegin()
+        // ─────────────────────────────────────────────────────────────
+        // LIFECYCLE
+        // ─────────────────────────────────────────────────────────────
+
+        private void OnEnable()
         {
-            _beingScanned = true;
-            // Graybox: no visual. Art phase: start a gentle glow pulse coroutine.
+            GameEvents.OnJumpInput += HandleJumpInput;
         }
 
-        /// <summary>Scan completed successfully.</summary>
-        public void OnScanComplete()
+        private void OnDisable()
         {
-            _beingScanned = false;
-            // Graybox: no visual. Art phase: brief bright flash, then settle.
-        }
-
-        /// <summary>Scan was interrupted before completing.</summary>
-        public void OnScanInterrupted()
-        {
-            _beingScanned = false;
-            // Graybox: no visual. Art phase: revert scan-begin glow.
+            GameEvents.OnJumpInput -= HandleJumpInput;
         }
 
         // ─────────────────────────────────────────────────────────────
-        // COLLISION — player lands on top surface
+        // COLLISION — detect player standing on pad
         // ─────────────────────────────────────────────────────────────
 
-        private void OnCollisionEnter2D(Collision2D col)
+        public void NotifyCollisionEnter(Collision2D col)
         {
-            if (_onCooldown) return;
-            if (_config == null) return;
             if (!col.gameObject.CompareTag("Player")) return;
-
-            Rigidbody2D playerRb = col.rigidbody;
-            if (playerRb == null) return;
-
-            // Only launch when player lands on the TOP surface
             foreach (var contact in col.contacts)
             {
-                if (contact.normal.y > 0.7f)
+                if (contact.normal.y < -0.7f)
                 {
-                    Launch(playerRb);
+                    _playerOnPad = true;
+                    _playerRb = col.rigidbody;
                     return;
                 }
             }
         }
 
+        public void NotifyCollisionExit(Collision2D col)
+        {
+            if (!col.gameObject.CompareTag("Player")) return;
+            _playerOnPad = false;
+            _playerRb = null;
+        }
+
         // ─────────────────────────────────────────────────────────────
-        // LAUNCH
+        // JUMP INPUT — boosted launch when player is on pad
         // ─────────────────────────────────────────────────────────────
 
-        private void Launch(Rigidbody2D playerRb)
+        private void HandleJumpInput()
         {
-            // Preserve horizontal velocity — run-up directional launches work correctly
-            playerRb.linearVelocity = new Vector2(playerRb.linearVelocity.x, _config.LaunchForce);
+            if (!_playerOnPad || _playerRb == null || _onCooldown) return;
+            if (_config == null) return;
+
+            // Cancel the normal jump buffered in PlayerController
+            // so it doesn't override our boosted launch in the same FixedUpdate
+            _playerRb.GetComponent<PlayerController>()?.CancelJumpRequest();
+
+            // Apply boosted vertical velocity, preserve horizontal
+            _playerRb.linearVelocity = new Vector2(
+                _playerRb.linearVelocity.x, _config.LaunchForce);
 
             GameEvents.RaiseJumpPadLaunched(transform.position);
 
@@ -129,7 +142,8 @@ namespace TerrasHeart.Environment
 
         private IEnumerator VisualPunch()
         {
-            Transform target = _spriteRenderer != null ? _spriteRenderer.transform : transform;
+            Transform target = _spriteRenderer != null
+                ? _spriteRenderer.transform : transform;
 
             target.localScale = new Vector3(1.2f, 0.7f, 1f);
 
@@ -138,7 +152,8 @@ namespace TerrasHeart.Environment
             {
                 elapsed += Time.deltaTime;
                 float t = elapsed / 0.25f;
-                target.localScale = Vector3.Lerp(new Vector3(1.2f, 0.7f, 1f), Vector3.one, t);
+                target.localScale = Vector3.Lerp(
+                    new Vector3(1.2f, 0.7f, 1f), Vector3.one, t);
                 yield return null;
             }
 

@@ -76,7 +76,9 @@ namespace TerrasHeart.Events
 
         /// <summary>true = entering slide, false = exiting slide.</summary>
         public static event Action<bool> OnSlideStateChanged;
-
+        /// <summary>Raised by PlayerController when Space is pressed. JumpPad subscribes to apply boosted launch.</summary>
+        public static event Action OnJumpInput;
+        public static void RaiseJumpInput() => OnJumpInput?.Invoke();
         /// <summary>true = entering swim, false = exiting swim.</summary>
         public static event Action<bool> OnSwimStateChanged;
 
