@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d2e1e4714b49fce49a64d91dc15232ff, type: 3}
   m_Name: WaterVolume_Pool1
   m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Environment.WaterVolumeSO
-  SurfaceY: 0
+  SurfaceY: -58
   OxygenDrainMultiplier: 1

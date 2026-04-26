@@ -10,8 +10,10 @@ namespace TerrasHeart.Player
     /// Cross-system communication via GameEvents bus only.
     ///
     /// State priority (highest to lowest): Swim > Slide > Land
-    /// Swim entry/exit driven by WaterVolume → GameEvents.OnWaterEntered / OnWaterExited.
-    /// Slide entry driven by contact normal + SlipperySlope physics material detection.
+    /// Swim entry/exit driven by WaterSubmersionController → GameEvents.OnPlayerSubmerged.
+    /// WaterSubmersionController handles gravity/damping changes — PlayerController handles input only.
+    /// Slide entry: sharedMaterial.name == _slopeMaterialName AND steep contact normal.
+    /// Slide exit: flat contact normal (angle from Vector2.up <= _flatGroundAngleThreshold).
     /// </summary>
     [RequireComponent(typeof(Rigidbody2D))]
     public class PlayerController : MonoBehaviour
@@ -30,8 +32,15 @@ namespace TerrasHeart.Player
         [Header("Swim")]
         [SerializeField] private SwimConfigSO _swimConfig;
 
-        [Header("Slide")]
-        [Tooltip("Deceleration rate applied once the slide reaches flat ground (Mathf.MoveTowards).")]
+        [Header("Slide State")]
+        [Tooltip("PhysicsMaterial2D name that triggers slide on contact.")]
+        [SerializeField] private string _slopeMaterialName = "SlipperySlope";
+
+        [Tooltip("Max angle from Vector2.up still considered flat ground (degrees). " +
+                 "Contact normals within this angle exit the slide state.")]
+        [SerializeField] private float _flatGroundAngleThreshold = 20f;
+
+        [Tooltip("Deceleration rate (units/s) applied via MoveTowards after slide exits.")]
         [SerializeField] private float _slideDecelerationRate = 8f;
 
         [Header("Ground Detection")]
@@ -49,12 +58,11 @@ namespace TerrasHeart.Player
 
         // Slide
         private bool _isSliding;
-        private bool _isOnSlipperySurface; // set by OnCollisionStay2D each physics step
+        private bool _isDecelerating;
 
-        // Swim
+        // Swim — gravity/damping managed by WaterSubmersionController
+        // PlayerController only manages input override
         private bool _isSwimming;
-        private float _waterSurfaceY;
-        private float _originalGravityScale;
 
         // Jump buffering (captured in Update, consumed in FixedUpdate)
         private bool _jumpRequested;
@@ -66,11 +74,11 @@ namespace TerrasHeart.Player
         /// <summary>Whether Dr. Maria is currently touching the ground layer.</summary>
         public bool IsGrounded => _isGrounded;
 
-        /// <summary>Whether Dr. Maria is currently in swim state.</summary>
-        public bool IsSwimming => _isSwimming;
-
         /// <summary>Whether Dr. Maria is currently in slide state.</summary>
         public bool IsSliding => _isSliding;
+
+        /// <summary>Whether Dr. Maria is currently in swim state.</summary>
+        public bool IsSwimming => _isSwimming;
 
         // ─────────────────────────────────────────────────────────────
         // LIFECYCLE
@@ -79,19 +87,16 @@ namespace TerrasHeart.Player
         private void Awake()
         {
             _rb = GetComponent<Rigidbody2D>();
-            _originalGravityScale = _rb.gravityScale;
         }
 
         private void OnEnable()
         {
-            GameEvents.OnWaterEntered += HandleWaterEntered;
-            GameEvents.OnWaterExited += HandleWaterExited;
+            GameEvents.OnPlayerSubmerged += HandlePlayerSubmerged;
         }
 
         private void OnDisable()
         {
-            GameEvents.OnWaterEntered -= HandleWaterEntered;
-            GameEvents.OnWaterExited -= HandleWaterExited;
+            GameEvents.OnPlayerSubmerged -= HandlePlayerSubmerged;
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -126,11 +131,14 @@ namespace TerrasHeart.Player
             if (_isSwimming)
             {
                 HandleSwimMovement();
-                CheckSwimGroundExit();
             }
             else if (_isSliding)
             {
-                HandleSlideMovement();
+                // Slide: physics owns the descent — no velocity override
+            }
+            else if (_isDecelerating)
+            {
+                HandleDeceleration();
             }
             else
             {
@@ -138,7 +146,6 @@ namespace TerrasHeart.Player
             }
 
             _jumpRequested = false;
-            _isOnSlipperySurface = false;
         }
 
         // ─────────────────────────────────────────────────────────────
@@ -165,13 +172,15 @@ namespace TerrasHeart.Player
 
         // ─────────────────────────────────────────────────────────────
         // SWIM MOVEMENT
+        // WaterSubmersionController owns gravity and damping.
+        // PlayerController only overrides velocity for directional input.
         // ─────────────────────────────────────────────────────────────
 
         private void HandleSwimMovement()
         {
             if (_swimConfig == null)
             {
-                Debug.LogWarning("[PlayerController] SwimConfigSO not assigned. Assign it in the Inspector.", this);
+                Debug.LogWarning("[PlayerController] SwimConfigSO not assigned.", this);
                 return;
             }
 
@@ -195,50 +204,84 @@ namespace TerrasHeart.Player
             _jumpRequested = false;
         }
 
-        private void CheckSwimGroundExit()
+        // ─────────────────────────────────────────────────────────────
+        // DECELERATION — post-slide momentum bleed-off
+        // ─────────────────────────────────────────────────────────────
+
+        private void HandleDeceleration()
         {
-            if (_isGrounded && transform.position.y >= _waterSurfaceY)
-                ExitSwimState();
+            var keyboard = Keyboard.current;
+            float inputX = 0f;
+            if (keyboard != null)
+            {
+                if (keyboard.aKey.isPressed) inputX = -1f;
+                if (keyboard.dKey.isPressed) inputX = 1f;
+            }
+
+            float targetX = inputX * _moveSpeed;
+            float newX = Mathf.MoveTowards(
+                _rb.linearVelocity.x, targetX, _slideDecelerationRate * Time.fixedDeltaTime);
+
+            _rb.linearVelocity = new Vector2(newX, _rb.linearVelocity.y);
+
+            if (Mathf.Approximately(newX, targetX))
+                _isDecelerating = false;
         }
 
         // ─────────────────────────────────────────────────────────────
-        // SLIDE MOVEMENT
+        // COLLISION CALLBACKS — slide entry and exit
         // ─────────────────────────────────────────────────────────────
 
-        private void HandleSlideMovement()
+        private void OnCollisionEnter2D(Collision2D col)
         {
-            if (_isOnSlipperySurface) return;
+            if (_isSwimming) return;
+            TryEnterSlide(col);
+            TryExitSlide(col);
+        }
 
-            if (_isGrounded)
+        private void OnCollisionStay2D(Collision2D col)
+        {
+            if (_isSwimming) return;
+            TryEnterSlide(col);
+            TryExitSlide(col);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // SLIDE ENTRY — material name + steep normal
+        // ─────────────────────────────────────────────────────────────
+
+        private void TryEnterSlide(Collision2D col)
+        {
+            if (_isSliding) return;
+
+            if (col.collider.sharedMaterial == null) return;
+            if (col.collider.sharedMaterial.name != _slopeMaterialName) return;
+
+            foreach (var contact in col.contacts)
             {
-                float deceleratedX = Mathf.MoveTowards(
-                    _rb.linearVelocity.x, 0f, _slideDecelerationRate * Time.fixedDeltaTime);
-                _rb.linearVelocity = new Vector2(deceleratedX, _rb.linearVelocity.y);
-
-                if (Mathf.Abs(_rb.linearVelocity.x) < 0.05f)
-                    ExitSlideState();
+                float angle = Vector2.Angle(contact.normal, Vector2.up);
+                if (angle > _flatGroundAngleThreshold)
+                {
+                    EnterSlideState();
+                    return;
+                }
             }
         }
 
         // ─────────────────────────────────────────────────────────────
-        // COLLISION CALLBACKS — slide detection
+        // SLIDE EXIT — flat ground normal (material-agnostic)
         // ─────────────────────────────────────────────────────────────
 
-        private void OnCollisionStay2D(Collision2D col)
+        private void TryExitSlide(Collision2D col)
         {
+            if (!_isSliding) return;
+
             foreach (var contact in col.contacts)
             {
-                bool isSteep = contact.normal.y > 0.1f && contact.normal.y < 0.7f;
-                bool isSlippery = col.collider.sharedMaterial != null
-                                  && col.collider.sharedMaterial.friction <= 0f;
-
-                if (isSteep && isSlippery)
+                float angle = Vector2.Angle(contact.normal, Vector2.up);
+                if (angle <= _flatGroundAngleThreshold)
                 {
-                    _isOnSlipperySurface = true;
-
-                    if (!_isSliding && !_isSwimming)
-                        EnterSlideState();
-
+                    ExitSlideState();
                     return;
                 }
             }
@@ -251,28 +294,29 @@ namespace TerrasHeart.Player
         private void EnterSlideState()
         {
             _isSliding = true;
+            _isDecelerating = false;
             GameEvents.RaiseSlideStateChanged(true);
         }
 
         private void ExitSlideState()
         {
             _isSliding = false;
+            _isDecelerating = true;
             GameEvents.RaiseSlideStateChanged(false);
         }
 
         // ─────────────────────────────────────────────────────────────
         // SWIM STATE
+        // Gravity and damping owned by WaterSubmersionController.
+        // PlayerController only toggles input override.
         // ─────────────────────────────────────────────────────────────
 
-        private void HandleWaterEntered(float surfaceY)
+        private void HandlePlayerSubmerged(bool isSubmerged)
         {
-            _waterSurfaceY = surfaceY;
-            EnterSwimState();
-        }
-
-        private void HandleWaterExited()
-        {
-            ExitSwimState();
+            if (isSubmerged)
+                EnterSwimState();
+            else
+                ExitSwimState();
         }
 
         private void EnterSwimState()
@@ -280,14 +324,13 @@ namespace TerrasHeart.Player
             if (_isSliding) ExitSlideState();
 
             _isSwimming = true;
-            _rb.gravityScale = 0f;
+            _isDecelerating = false;
             GameEvents.RaiseSwimStateChanged(true);
         }
 
         private void ExitSwimState()
         {
             _isSwimming = false;
-            _rb.gravityScale = _originalGravityScale;
             GameEvents.RaiseSwimStateChanged(false);
         }
     }

@@ -1,11 +1,10 @@
 using UnityEngine;
-using TerrasHeart.Systems;
 using TerrasHeart.Events;
 
 namespace TerrasHeart.Environment
 {
     /// <summary>
-    /// Attach to a GameObject with a BoxCollider2D (Is Trigger = true) and a Rigidbody2D (Body Type = Static).
+    /// Attach to a GameObject with a BoxCollider2D (Is Trigger = true).
     /// Raises GameEvents.OnWaterEntered / OnWaterExited when DrMaria enters or exits the volume.
     /// PlayerController never subscribes to trigger callbacks directly — it uses the GameEvents bus.
     /// </summary>
@@ -18,20 +17,23 @@ namespace TerrasHeart.Environment
 
         private void Reset()
         {
-            // Ensure the collider is set to trigger when component is first added
             if (TryGetComponent<Collider2D>(out var col))
                 col.isTrigger = true;
         }
 
         private void OnTriggerEnter2D(Collider2D other)
         {
+            Debug.Log($"[WaterVolume] Trigger entered by: {other.gameObject.name} tag: {other.gameObject.tag}");
+
             if (!other.CompareTag("Player")) return;
+
             if (_volumeConfig == null)
             {
                 Debug.LogWarning($"[WaterVolume] No WaterVolumeSO assigned on {gameObject.name}. Defaulting SurfaceY to 0.", this);
                 GameEvents.RaiseWaterEntered(transform.position.y);
                 return;
             }
+
             GameEvents.RaiseWaterEntered(_volumeConfig.SurfaceY);
         }
 
