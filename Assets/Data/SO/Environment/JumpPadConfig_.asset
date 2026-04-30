@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 50b82256b5c15b54185931c1e4d1c23c, type: 3}
   m_Name: JumpPadConfig_
   m_EditorClassIdentifier: Assembly-CSharp::TerrasHeart.Environment.JumpPadConfigSO
-  LaunchForce: 25
+  LaunchForce: 18
   Cooldown: 1.5

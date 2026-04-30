@@ -5,9 +5,11 @@
 // Detects when DrMaria enters the water volume and applies increased
 // Rigidbody2D linearDamping and reduced gravityScale to simulate water resistance.
 //
-// Submersion state is determined every FixedUpdate by comparing DrMaria's
-// world Y position against the water surface Y — not by OnTriggerExit2D,
-// which is unreliable when exiting through the top of a trigger volume.
+// Submersion state is determined every FixedUpdate by combining two conditions:
+//   1. _isInsideVolume — true only while DrMaria is inside the BoxCollider2D trigger
+//   2. Y position check — DrMaria's world Y is below the water surface Y
+// Both must be true for submersion to activate. This prevents the Y-only check
+// from firing when DrMaria is at a similar depth elsewhere in the scene.
 //
 // Original damping and gravity values are cached at Awake from the assigned
 // _playerRigidbody reference — before any submersion can modify them.
@@ -46,7 +48,8 @@ namespace TerrasHeart.Environment
         [SerializeField] private float _submergedGravityScale = 0.4f;
 
         [Tooltip("Y offset from this GameObject's position that defines the water surface. " +
-                 "Auto-set from mesh bounds top edge in Start — override if needed.")]
+                 "Auto-set from mesh bounds top edge in Start — override if needed. " +
+                 "BrineglowDescent Pool1: 10.287")]
         [SerializeField] private float _waterSurfaceLocalY = 0f;
 
         [Header("Ecological Health Response")]
@@ -66,6 +69,11 @@ namespace TerrasHeart.Environment
 
         private Transform _trackedTransform;
         private bool _isSubmerged;
+
+        // True only while DrMaria is physically inside the BoxCollider2D trigger volume.
+        // Combined with the Y position check to prevent false submersion when DrMaria
+        // is at a similar depth elsewhere in the scene.
+        private bool _isInsideVolume;
 
         // ------------------------------------------------------------------
         // Lifecycle
@@ -112,6 +120,33 @@ namespace TerrasHeart.Environment
                 RestoreDamping();
         }
 
+        // ------------------------------------------------------------------
+        // Trigger — sets _isInsideVolume flag
+        // ------------------------------------------------------------------
+
+        private void OnTriggerEnter2D(Collider2D other)
+        {
+            if (other.CompareTag("Player"))
+                _isInsideVolume = true;
+        }
+
+        private void OnTriggerExit2D(Collider2D other)
+        {
+            if (other.CompareTag("Player"))
+            {
+                _isInsideVolume = false;
+
+                // Force exit submersion immediately on trigger exit —
+                // don't wait for next FixedUpdate Y check
+                if (_isSubmerged)
+                    RestoreDamping();
+            }
+        }
+
+        // ------------------------------------------------------------------
+        // FixedUpdate — submersion state
+        // ------------------------------------------------------------------
+
         private void FixedUpdate()
         {
             if (_playerRigidbody == null || _trackedTransform == null) return;
@@ -119,7 +154,9 @@ namespace TerrasHeart.Environment
             float waterSurfaceWorldY = transform.TransformPoint(
                 new Vector3(0f, _waterSurfaceLocalY, 0f)).y;
 
-            bool shouldBeSubmerged = _trackedTransform.position.y < waterSurfaceWorldY - 0.1f;
+            // Both conditions required: inside the trigger volume AND below surface Y
+            bool shouldBeSubmerged = _isInsideVolume &&
+                _trackedTransform.position.y < waterSurfaceWorldY - 0.1f;
 
             // Exit immediately when player has upward velocity near the surface
             if (_isSubmerged && _playerRigidbody.linearVelocity.y > 0.5f &&
@@ -131,13 +168,6 @@ namespace TerrasHeart.Environment
             else if (!shouldBeSubmerged && _isSubmerged)
                 RestoreDamping();
         }
-
-        // ------------------------------------------------------------------
-        // Trigger — no longer used for state, kept for safety only
-        // ------------------------------------------------------------------
-
-        private void OnTriggerEnter2D(Collider2D other) { }
-        private void OnTriggerExit2D(Collider2D other) { }
 
         // ------------------------------------------------------------------
         // Submersion State
